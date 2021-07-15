@@ -1,0 +1,1 @@
+find . "*.sh" -execdir chmod u+x {} \;
