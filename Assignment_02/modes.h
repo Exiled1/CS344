@@ -1,5 +1,0 @@
-#ifndef ASSIGNMENT_02_MODES
-#define ASSIGNMENT_02_MODES
-    
-
-#endif /* ASSIGNMENT_02_MODES */
