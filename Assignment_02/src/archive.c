@@ -1,5 +1,6 @@
-#include "archive_header.h"
 #include "archive.h"
+
+
 /**
  * @brief Given the name of the archive, and the file you want to make the master archive in. 
  * * DOES NOT SET UP THE FIRST ARCHIVE FILE. DO THAT IN A DIFFERENT FUNCTION.
@@ -11,7 +12,7 @@
 Archive_t Archive_Create(char* arch_name, char* master_file_name){
     // Open the master archive, assign a name, allocate the archive file list.
     Archive_t NewArchive; // Make a new archive.
-    NewArchive.archive_name = arch_name;
+    strcpy(NewArchive.archive_name, arch_name);
     strncpy(NewArchive.archive_name, arch_name, NAME_SIZE); // Copy over the name to the struct.
 
     NewArchive.total_files = 0;
@@ -29,9 +30,9 @@ Archive_t Archive_Create(char* arch_name, char* master_file_name){
 void Archive_Append_File(Archive_t* p_archive, char* file_name){
     Archive_File_t* new_ar_file = malloc(sizeof(Archive_File_t)); // Creating a new archive file node.
 
-    new_ar_file->archive_file_name = malloc(sizeof(char) * (strlen(file_name) + 1));
+    new_ar_file->archive_file_name = malloc(sizeof(char) * (strlen(file_name) + 1)); // Create enough space in the struct to fit in the file name PLUS the null byte.
 
-    strcpy(new_ar_file->archive_file_name, file_name);
+    strcpy(new_ar_file->archive_file_name, file_name); // Copy over the file name into the object.
     
     new_ar_file->archive_file = fopen(new_ar_file->archive_file_name, "r"); // read the file, then write the contents to the master archive.
 
@@ -65,7 +66,20 @@ void Archive_Append_File(Archive_t* p_archive, char* file_name){
 }
 
 void ArFile_Write_Header(Archive_File_t* p_ar_file){
+    FileInfo fileInfo;
     
+    // * int fileno(FILE *stream); Useful, gets a file descriptor from a FILE* stream, returns -1 if failed.
+    int ar_file_desc = fileno(p_ar_file->archive_file); // FD number from the struct stream.
+    // If either the fileno or the stat functions fail, order matters for the if, since stat runs first, dont swap the order.
+    if (stat(p_ar_file->archive_file_name, &fileInfo) == -1 || ar_file_desc == -1){ 
+        perror("Error occured in ArFile_Write_Header with FILE* to file descriptor conversion\n");
+        exit(-1);
+    }
+    // After all our initilization is done, assign the relevant header data to the archive file.
+    // TODO: date, uid, gid, mode, size, fmag
+    strcpy(p_ar_file->arch_head.ar_name, p_ar_file->archive_file_name); // Get the file name into the header.
+    
+
 }
 
 void Ar_Append_Directory(Archive_t* master_ar){
