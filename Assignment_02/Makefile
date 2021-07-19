@@ -1,6 +1,6 @@
 
 # THIS IS WHERE YOU SPECIFY THE SOURCE FILES.
-SOURCES = main.c a.c 
+SOURCES = myar.c archive.c
 
 # Target is the final executable name.
 TARGET = blob
@@ -11,7 +11,7 @@ VPATH =./src/ # VPATH is to set the source code path, use this if the path isn't
 #LDFLAGS: Extra flags to give to compilers when they are supposed to invoke the linker
 
 CC=gcc
-CFLAGS=-std=c11 -Wall -Werror -g3 -O0 -Iinclude
+CFLAGS= -std=c11 -Wall -g3 -O0 -Werror -Iinclude
 
 # This default goal is to make your main target, it'll go and create an executable file in the specified VPATH 
 

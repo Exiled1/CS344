@@ -8,11 +8,26 @@
 #include <utime.h>
 #include <sys/stat.h>
 #include "archive_header.h"
-#define NAME_SIZE 32
 
+
+
+#define NAME_SIZE 32
+#define WRITE_BUFFER_SIZE 256
+
+typedef struct ar_flags Ar_flags;
 typedef struct archive Archive_t;
 typedef struct archive_file Archive_File_t;
 typedef struct stat FileInfo; // Type definition of the stat struct from the stat library.
+
+typedef struct ar_flags{
+    bool option_q; // Keep track of option -q
+    bool option_x; // Keep track of option -x
+    bool option_t; // Keep track of option -t
+    bool option_v; // Keep track of option -v
+    bool option_d; // Keep track of option -d
+    bool option_A; // Keep track of option -A
+    bool option_w; // Keep track of option -w
+}Ar_flags;
 
 /**
  * @brief This describes the object of an archive. Contains the name of the archive. A list of the archive headers, and copies of the files in the file list.
@@ -30,14 +45,7 @@ typedef struct archive_file{
  * 
  */
 typedef struct archive{
-    bool option_q; // Keep track of option -q
-    bool option_x; // Keep track of option -x
-    bool option_t; // Keep track of option -t
-    bool option_v; // Keep track of option -v
-    bool option_d; // Keep track of option -d
-    bool option_A; // Keep track of option -A
-    bool option_w; // Keep track of option -w
-
+    Ar_flags ar_flags; // The flags associated with this archive. 
     char archive_name[NAME_SIZE]; // Name of the archive.
     int total_files; // Total files in the archive.
     FILE* master_archive; // The file where all of the archive files are written to.

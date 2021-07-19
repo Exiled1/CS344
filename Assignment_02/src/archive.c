@@ -1,5 +1,5 @@
 #include "archive.h"
-
+#define _POSIX_C_SOURCE 1
 
 /**
  * @brief Given the name of the archive, and the file you want to make the master archive in. 
@@ -12,11 +12,10 @@
 Archive_t Archive_Create(char* arch_name, char* master_file_name){
     // Open the master archive, assign a name, allocate the archive file list.
     Archive_t NewArchive; // Make a new archive.
-    strcpy(NewArchive.archive_name, arch_name);
     strncpy(NewArchive.archive_name, arch_name, NAME_SIZE); // Copy over the name to the struct.
 
     NewArchive.total_files = 0;
-    NewArchive.master_archive = fopen(master_file_name, "rw"); // Create the master archive.
+    NewArchive.master_archive = fopen(master_file_name, "w+"); // Create the master archive with read write invasive mode. (Deletes archive file if it already exists)
     NewArchive.head = malloc(sizeof(Archive_File_t)); //Allocate the list inside of the master archive.
     return NewArchive;
 }
@@ -65,20 +64,30 @@ void Archive_Append_File(Archive_t* p_archive, char* file_name){
     return;
 }
 
+/**
+ * @brief Write all of the relevant header data to the archive. 
+ * 
+ * @param p_ar_file 
+ */
 void ArFile_Write_Header(Archive_File_t* p_ar_file){
     FileInfo fileInfo;
     
     // * int fileno(FILE *stream); Useful, gets a file descriptor from a FILE* stream, returns -1 if failed.
-    int ar_file_desc = fileno(p_ar_file->archive_file); // FD number from the struct stream.
+    //int ar_file_desc = fileno(p_ar_file->archive_file); // FD number from the struct stream.
     // If either the fileno or the stat functions fail, order matters for the if, since stat runs first, dont swap the order.
-    if (stat(p_ar_file->archive_file_name, &fileInfo) == -1 || ar_file_desc == -1){ 
+    if (stat(p_ar_file->archive_file_name, &fileInfo) == -1){ 
         perror("Error occured in ArFile_Write_Header with FILE* to file descriptor conversion\n");
         exit(-1);
     }
     // After all our initilization is done, assign the relevant header data to the archive file.
-    // TODO: date, uid, gid, mode, size, fmag
-    strcpy(p_ar_file->arch_head.ar_name, p_ar_file->archive_file_name); // Get the file name into the header.
-    
+    // TODO: date, uid, gid, mode, size, fmag, DONE!!
+    memcpy(p_ar_file->arch_head.ar_name, p_ar_file->archive_file_name, AR_NAME_SIZE); // Get the file name into the header.
+    memcpy(p_ar_file->arch_head.ar_date, &fileInfo.st_mtime, AR_DATE_SIZE);
+    memcpy(p_ar_file->arch_head.ar_uid, &fileInfo.st_uid, AR_UID_SIZE);
+    memcpy(p_ar_file->arch_head.ar_gid, &fileInfo.st_gid, AR_GID_SIZE);
+    memcpy(p_ar_file->arch_head.ar_mode, &fileInfo.st_mode, AR_MODE_SIZE);
+    memcpy(p_ar_file->arch_head.ar_size, &fileInfo.st_size, AR_FSIZE_SIZE);
+    memcpy(p_ar_file->arch_head.ar_fmag, ARFMAG, AR_FMAG_SIZE);
 
 }
 
@@ -86,8 +95,36 @@ void Ar_Append_Directory(Archive_t* master_ar){
     printf("Directory Append WIP\n");
 
 }
-
+/**
+ * @brief This method takes a master archive and an archive file that you
+ *  want to add to the master archive file and writes it to the master archive file.
+ *  This method does not go through the master archive linked list though, since it's
+ *  called whenever we append a new file. Also adds in the order of [HEADER][FILE] into the master archive.
+ * 
+ * @param master_ar 
+ * @param new_ar_file 
+ */
 void Ar_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file){
-    printf("Master Write WIP\n");
+    char data_buffer[WRITE_BUFFER_SIZE]; // Keep a data buffer to read and write file data into the master archive file.
+
+    // Open a stream to the master archive, if the stream is open, then JUST write to the stream, don't attempt to open a new one.
+    if(ftell(master_ar->master_archive) >= 0){ // The stream is open.
+        printf("Stream is open in Ar_Write_Master.\n");
+    }else{
+        perror("It seems that the master archive stream is closed in Ar_Write_Master, or something went wrong and the fopen in the Archive_Create isn't persistent. \n");
+    }
+
+    fputs(ARMAG, master_ar->master_archive);
+    fputs(new_ar_file->arch_head.ar_date, master_ar->master_archive);
+    fputs(new_ar_file->arch_head.ar_uid, master_ar->master_archive);
+    fputs(new_ar_file->arch_head.ar_mode, master_ar->master_archive);
+    fputs(new_ar_file->arch_head.ar_size, master_ar->master_archive);
+    fputs(new_ar_file->arch_head.ar_fmag, master_ar->master_archive);
+
+    // While we haven't reached the end of the archive file stream write to the master archive file. This code snippet will write the contents of the file, but not the header.
+    while(fgets(data_buffer, WRITE_BUFFER_SIZE, new_ar_file->archive_file) != NULL){
+        fputs(data_buffer, master_ar->master_archive);
+    }
+    
 }
 
