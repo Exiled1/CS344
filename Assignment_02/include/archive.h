@@ -52,12 +52,17 @@ typedef struct archive{
     Archive_File_t* head; // keeps track of the archive files, malloc.
 }Archive_t;
 
+Archive_t Archive_Create(char* arch_name, char* master_file_name);
+
 void Archive_Append_File(Archive_t* p_archive, char* file_name);
+// This doesn't need to be public.
+// void ArFile_Write_Header(Archive_File_t* p_ar_file);
 
-void ArFile_Write_Header(Archive_File_t* p_ar_file);
+void Archive_Delete_File(Archive_t* master_ar, char* target_file);
 
-void Ar_Append_Directory(Archive_t* master_ar);
+void Archive_Append_Directory(Archive_t* master_ar);
+// This doesn't need to be a public method.
+//void Archive_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file);
 
-void Ar_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file);
-
+void Archive_Help();
 #endif /* ASSIGNMENT_02_INCLUDE_ARCHIVE */

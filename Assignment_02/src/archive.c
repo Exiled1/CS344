@@ -1,5 +1,22 @@
+#define _POSIX_C_SOURCE 2
 #include "archive.h"
-#define _POSIX_C_SOURCE 1
+
+
+// Forward Declarations
+
+Archive_t Archive_Create(char*, char*);
+
+void Archive_Append_File(Archive_t*, char*);
+
+void ArFile_Write_Header(Archive_File_t*);
+
+void Archive_Delete_File(Archive_t*, char*);
+
+void Archive_Append_Directory(Archive_t*);
+
+void Archive_Write_Master(Archive_t*, Archive_File_t*);
+
+void Archive_Help();
 
 /**
  * @brief Given the name of the archive, and the file you want to make the master archive in. 
@@ -42,7 +59,7 @@ void Archive_Append_File(Archive_t* p_archive, char* file_name){
 
     ArFile_Write_Header(new_ar_file); // Write the file headers. Position matters.
 
-    Ar_Write_Master(p_archive, new_ar_file); // Write the file + ar header contents to the master archive.
+    Archive_Write_Master(p_archive, new_ar_file); // Write the file + ar header contents to the master archive.
 
     // * EVERYTHING BELOW HERE IS TO ADD THE AR FILE NODE INTO THE LINKED LIST.
     // You have a new node made and the data is added in.
@@ -65,7 +82,7 @@ void Archive_Append_File(Archive_t* p_archive, char* file_name){
 }
 
 /**
- * @brief Write all of the relevant header data to the archive. 
+ * @brief Write all of the relevant header data to the archive file.
  * 
  * @param p_ar_file 
  */
@@ -91,7 +108,11 @@ void ArFile_Write_Header(Archive_File_t* p_ar_file){
 
 }
 
-void Ar_Append_Directory(Archive_t* master_ar){
+void Archive_Delete_File(Archive_t* master_ar, char* target_file){
+    printf("Archive File Delete WIP.\n");
+}
+
+void Archive_Append_Directory(Archive_t* master_ar){
     printf("Directory Append WIP\n");
 
 }
@@ -104,14 +125,14 @@ void Ar_Append_Directory(Archive_t* master_ar){
  * @param master_ar 
  * @param new_ar_file 
  */
-void Ar_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file){
+void Archive_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file){
     char data_buffer[WRITE_BUFFER_SIZE]; // Keep a data buffer to read and write file data into the master archive file.
 
     // Open a stream to the master archive, if the stream is open, then JUST write to the stream, don't attempt to open a new one.
     if(ftell(master_ar->master_archive) >= 0){ // The stream is open.
-        printf("Stream is open in Ar_Write_Master.\n");
+        printf("Stream is open in Archive_Write_Master.\n");
     }else{
-        perror("It seems that the master archive stream is closed in Ar_Write_Master, or something went wrong and the fopen in the Archive_Create isn't persistent. \n");
+        perror("It seems that the master archive stream is closed in Archive_Write_Master, or something went wrong and the fopen in the Archive_Create isn't persistent. \n");
     }
 
     fputs(ARMAG, master_ar->master_archive);
@@ -125,6 +146,23 @@ void Ar_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file){
     while(fgets(data_buffer, WRITE_BUFFER_SIZE, new_ar_file->archive_file) != NULL){
         fputs(data_buffer, master_ar->master_archive);
     }
-    
-}
 
+}
+/**
+ * @brief This is just something that prints helpful instructions on using the myar tool.
+ * 
+ */
+void Archive_Help(){
+    printf("Usage: myar [-][OPTIONS] archive_name [FILE(S) ...]\n");
+    printf("Desc: 'myar' saves any number of files into an archive file, it's also able to extract files from a 'myar' archive file.\n\n");
+    printf("Examples:\n");
+    printf("\tmyar -q archive.ar foo.txt bar.txt  # Create an archive.ar from teh files foo and bar.\n");
+    printf("Option flags:\n");
+    printf("\t-q, Quickly append files to an archive.\n");
+    printf("\t-x, Extract named files from an archive.\n");
+    printf("\t-t, Print a CONCISE table of contents of the archive.\n");
+    printf("\t-v, Print a VERBOSE table of contents of the archive.\n");
+    printf("\t-d, Delete named files from an archive.\n");
+    printf("\t-A, Quickly append all 'regular' files in the current directory except the archive itself and binary files.\n");
+
+}
