@@ -1,6 +1,6 @@
 
-# THIS IS WHERE YOU SPECIFY THE SOURCE FILES.
-SOURCES = myar.c archive.c
+# THIS IS WHERE YOU SPECIFY THE C SOURCE FILES.
+SOURCES = myar.c archive.c ar_options.c
 
 # Target is the final executable name.
 

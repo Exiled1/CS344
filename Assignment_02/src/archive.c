@@ -108,14 +108,17 @@ void ArFile_Write_Header(Archive_File_t* p_ar_file){
 
 }
 
+//TODO: Complete deletion from archive.
 void Archive_Delete_File(Archive_t* master_ar, char* target_file){
     printf("Archive File Delete WIP.\n");
 }
 
+//TODO: Just use Ar Append file for the whole file list in the dir.
 void Archive_Append_Directory(Archive_t* master_ar){
     printf("Directory Append WIP\n");
-
 }
+
+
 /**
  * @brief This method takes a master archive and an archive file that you
  *  want to add to the master archive file and writes it to the master archive file.
@@ -134,7 +137,7 @@ void Archive_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file){
     }else{
         perror("It seems that the master archive stream is closed in Archive_Write_Master, or something went wrong and the fopen in the Archive_Create isn't persistent. \n");
     }
-
+    // Assign the stored header data before 
     fputs(ARMAG, master_ar->master_archive);
     fputs(new_ar_file->arch_head.ar_date, master_ar->master_archive);
     fputs(new_ar_file->arch_head.ar_uid, master_ar->master_archive);
@@ -148,6 +151,8 @@ void Archive_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file){
     }
 
 }
+
+
 /**
  * @brief This is just something that prints helpful instructions on using the myar tool.
  * 
@@ -156,7 +161,7 @@ void Archive_Help(){
     printf("Usage: myar [-][OPTIONS] archive_name [FILE(S) ...]\n");
     printf("Desc: 'myar' saves any number of files into an archive file, it's also able to extract files from a 'myar' archive file.\n\n");
     printf("Examples:\n");
-    printf("\tmyar -q archive.ar foo.txt bar.txt  # Create an archive.ar from teh files foo and bar.\n");
+    printf("\tmyar -q archive.ar foo.txt bar.txt  # Create an archive.ar from the files foo and bar.\n");
     printf("Option flags:\n");
     printf("\t-q, Quickly append files to an archive.\n");
     printf("\t-x, Extract named files from an archive.\n");
@@ -166,3 +171,4 @@ void Archive_Help(){
     printf("\t-A, Quickly append all 'regular' files in the current directory except the archive itself and binary files.\n");
 
 }
+
