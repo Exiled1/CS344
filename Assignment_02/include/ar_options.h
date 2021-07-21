@@ -1,8 +1,8 @@
 #ifndef ASSIGNMENT_02_INCLUDE_AR_OPTIONS
 #define ASSIGNMENT_02_INCLUDE_AR_OPTIONS
-
+#include <stdbool.h>
 #include <argp.h>
-
+#include "archive.h"
 // Forward declaration of typedefs.
 typedef struct argp_state Arg_state;
 typedef struct arguments_t Arguments_t;
@@ -13,21 +13,25 @@ typedef struct argp_option Argp_option;
 //? const char*, int, const char*, int, const char*, int
 //? {"name", key, ?args, flags, *doc, group}
 
-static struct argp_option options[] = {
-    {"append", "q", 0, 0, "Quickly append files to an archive."},
-    {"extract", "x", 0, 0, "Extract named files from an archive."},
-    {"concise", "t", 0, 0, "Print a CONCISE table of contents of the archive."},
-    {"verbose", "v", 0, 0, "Print a VERBOSE table of contents of the archive."},
-    {"delete", "d", 0, 0, "Delete named files from an archive."},
-    {"append-all", "A", 0, 0, "Quickly append all 'regular' files in the current directory except the archive itself and binary files."},
-};
+
+
+//char args_doc[] = ""; // No standard args?
 
 typedef struct arguments_t{
     char* arg1; // 
-    char* archive_name; // 
+    char* archive_name; //
+    int file_amt;
     char** files;
+    bool option_q; // Keep track of option -q
+    bool option_x; // Keep track of option -x
+    bool option_t; // Keep track of option -t
+    bool option_v; // Keep track of option -v
+    bool option_d; // Keep track of option -d
+    bool option_A; // Keep track of option -A
+    bool option_w; // Keep track of option -w
 }Arguments_t;
 
-static error_t parse_opt (int key, char *arg, struct argp_state *state);
-
+error_t parse_opt (int key, char *arg, Arg_state *state);
+void Arg_Set_Defaults(Arguments_t* arguments);
+void Arg_AR_Transfer(Arguments_t* arguments, Archive_t* master_ar);
 #endif /* ASSIGNMENT_02_INCLUDE_AR_OPTIONS */

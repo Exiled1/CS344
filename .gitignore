@@ -1,2 +1,5 @@
 *.o
-.vscode/
+*.txt
+*.ar
+.gdb_history
+myar

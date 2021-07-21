@@ -19,7 +19,7 @@
 #define AR_MODE_SIZE 8 
 #define AR_FSIZE_SIZE 10
 #define AR_FMAG_SIZE 2
-
+#define AR_HEADER_SIZE 60
 typedef struct Ar_hdr {
     char ar_name[AR_NAME_SIZE];                /* Member file name, sometimes / terminated. */
     char ar_date[AR_DATE_SIZE];                /* File date, decimal seconds since Epoch. Same as mtime */ 

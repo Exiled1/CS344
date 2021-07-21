@@ -34,6 +34,7 @@ typedef struct ar_flags{
  * ! If this ends up breaking, it might have to do with the malloc that we used to allcoate this.
  */
 typedef struct archive_file{
+
     FILE* archive_file; // File pointer that we're grabbing.
     char* archive_file_name;
     Ar_hdr_t arch_head; // Header of the current archive file, has the permission mode.
@@ -52,8 +53,8 @@ typedef struct archive{
     Archive_File_t* head; // keeps track of the archive files, malloc.
 }Archive_t;
 
-Archive_t Archive_Create(char* arch_name, char* master_file_name);
-
+Archive_t Archive_Create(char* master_file_name);
+Archive_t Archive_Full_Write(Archive_t* master_ar, char*);
 void Archive_Append_File(Archive_t* p_archive, char* file_name);
 // This doesn't need to be public.
 // void ArFile_Write_Header(Archive_File_t* p_ar_file);
@@ -63,6 +64,6 @@ void Archive_Delete_File(Archive_t* master_ar, char* target_file);
 void Archive_Append_Directory(Archive_t* master_ar);
 // This doesn't need to be a public method.
 //void Archive_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file);
-
+bool Archive_No_Flags(Archive_t* master_ar);
 void Archive_Help();
 #endif /* ASSIGNMENT_02_INCLUDE_ARCHIVE */
