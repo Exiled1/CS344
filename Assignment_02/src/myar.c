@@ -61,46 +61,75 @@ int main(int argc, char **argv)
     // * Set the name of the archive to the first CLI argument since an archive file should always be specified.
     master_archive = Archive_Create(arguments.files[0]);
     Arg_AR_Transfer(&arguments, &master_archive);
-
+    //printf("Thing name: %s", master_archive.archive_name);
     // ? WE FINALLY GET TO THE ACTUAL PROGRAM SHIT.
 
-    if (Archive_No_Flags(&master_archive) == true) // No flags have been set in our archive.
-    {
-        printf("Please provide flags for your archive.\n");
-        Archive_Help();
-        exit(-1);
-    }
+    // if (Archive_No_Flags(&master_archive) == true) // No flags have been set in our archive.
+    // {
+    //     printf("Please provide flags for your archive.\n");
+    //     Archive_Help();
+    //     exit(-1);
+    // }
     
     //TODO: Define the behavior of the individual flags.
     if(master_archive.ar_flags.option_q == true){ // Quick append
+        
         printf("Q flag has been triggered.\n");
         master_archive.master_archive = fopen(arguments.files[0], "w");
         fputs(ARMAG,master_archive.master_archive); // Only works if stream has been opened.
         fclose(master_archive.master_archive); // close stream
         for (int current_file = 1; current_file < master_archive.total_files; current_file++)
         {
+            printf("Current file Name: %s\n",  arguments.files[current_file]);
             printf("Current file #: %d\n",  current_file);
+
             Archive_Append_File(&master_archive, arguments.files[current_file]); // append these files. 
+            
         }
-        
+        master_archive = Archive_Full_Write(&master_archive, arguments.files[0]);
+
     }else if(master_archive.ar_flags.option_x == true){ // Extraction
 
     }else if(master_archive.ar_flags.option_t == true){ // Concise
+        // master_archive.master_archive = fopen(arguments.files[0], "r"); // open the thing.
+        long files = ar_get_file_num(&master_archive, arguments.files[0]);
+        printf("Number of files in archive: %ld\n", files);
 
     }else if(master_archive.ar_flags.option_v == true){ // Verbose
+        printf("Rawr xd\n");
+        Archive_t new_archive = Archive_Create(arguments.files[0]);
+        long files = ar_get_file_num(&new_archive, arguments.files[0]); // gets amount of files in an archive file.
+        new_archive.total_files = files;
+        Archive_Retrieve(&new_archive, arguments.files[0]);
 
     }else if(master_archive.ar_flags.option_d == true){ // Delete
+        Archive_t new_archive = Archive_Create(arguments.files[0]);
+        long files = ar_get_file_num(&master_archive, arguments.files[0]); // gets amount of files in an archive file.
+        new_archive.total_files = files;
+  
+        Archive_Retrieve(&new_archive, arguments.files[0]);
+
+        Arg_AR_Transfer(&arguments, &new_archive);
+
         printf("Del flag triggered.\n");
-        fputs(ARMAG,master_archive.master_archive); // Only works if stream has been opened.
+
+        // ? Open
+        //master_archive.master_archive = fopen(arguments.files[0], "r");
+        // fputs(ARMAG,master_archive.master_archive); // Only works if stream has been opened.
+        // fclose(master_archive.master_archive);
+        // ? Close
+
         for(int current_file = 1; current_file < master_archive.total_files; current_file++){
-            printf("Current file #: %d\n",  current_file);
-            Archive_Delete_File(&master_archive, arguments.files[current_file]);
-        }   
+            printf("Current file #: %s\n",  arguments.files[current_file]);
+            Archive_Delete_File(&new_archive, arguments.files[current_file]);
+        }
+        new_archive = Archive_Full_Write(&new_archive, arguments.files[0]);
+
     }else if(master_archive.ar_flags.option_A == true){ // Dir append
         Archive_Append_Directory(&master_archive);
     }else if(master_archive.ar_flags.option_w == true){ // Extra cred.
 
     }
-    fclose(master_archive.master_archive);
+    //fclose(master_archive.master_archive);
     return 0;
 }

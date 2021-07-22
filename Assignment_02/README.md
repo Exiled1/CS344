@@ -1,3 +1,4 @@
 COMPILATION INSTRUCTIONS:
-- Use the command: 
-    gcc -std=c11 -Wall -Werror -g3 -O0 
+- Type: make
+done.
+To use: type ./myar --help for usage instructions

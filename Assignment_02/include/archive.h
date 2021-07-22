@@ -39,6 +39,7 @@ typedef struct archive_file{
     char* archive_file_name;
     Ar_hdr_t arch_head; // Header of the current archive file, has the permission mode.
     Archive_File_t* next; // Pointer to next archive file.
+    char* file_contents; // for rewriting/later.
 }Archive_File_t;
 
 /**
@@ -53,14 +54,18 @@ typedef struct archive{
     Archive_File_t* head; // keeps track of the archive files, malloc.
 }Archive_t;
 
+void Archive_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file);
+void Archive_Retrieve(Archive_t* archive, char* archive_name); 
+// int Archive_File_Num(Archive_t* archive, char* archive_name);
 Archive_t Archive_Create(char* master_file_name);
 Archive_t Archive_Full_Write(Archive_t* master_ar, char*);
 void Archive_Append_File(Archive_t* p_archive, char* file_name);
 // This doesn't need to be public.
 // void ArFile_Write_Header(Archive_File_t* p_ar_file);
+long ar_get_file_num(Archive_t* archive, char* ar_name);
 
 void Archive_Delete_File(Archive_t* master_ar, char* target_file);
-
+long get_hdr_size(Ar_hdr_t* h);
 void Archive_Append_Directory(Archive_t* master_ar);
 // This doesn't need to be a public method.
 //void Archive_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file);

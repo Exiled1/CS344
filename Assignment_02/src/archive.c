@@ -27,21 +27,20 @@ void Archive_Help();
  * @return Archive_t 
  */
 Archive_t Archive_Full_Write(Archive_t* master_ar, char* ar_name){
-    Archive_t new_ar = Archive_Create(ar_name);
-    Archive_File_t* head = master_ar->head; // temp head.
-    
+    FILE* ar_write = fopen(ar_name, "w+");
+    Archive_File_t* head = master_ar->head;
 
-
-    if(head == NULL){ // check if shit exists.
+    if(head->archive_file_name == NULL){ // check if shit exists.
         fprintf(stderr, "The list is empty my guy.\n");
         exit(-1);
     }
 
-    while(head->next != NULL){ // traverse til we get to the end
-        Archive_Append_File(&new_ar, head->archive_file_name); // Keep adding the files to the new archive.
+    while(head){ // traverse til we get to the end
+        // Archive_Append_File(&new_ar, head->archive_file_name); // Keep adding the files to the new archive.
+        Archive_Write_Master(master_ar, head); // Write the file + ar header contents to the master archive.
         head = head->next;
     }
-    return new_ar;
+    return *master_ar;
 }
 
 /**
@@ -55,14 +54,11 @@ Archive_t Archive_Full_Write(Archive_t* master_ar, char* ar_name){
 Archive_t Archive_Create(char* master_file_name){
     // Open the master archive, assign a name, allocate the archive file list.
     Archive_t NewArchive; // Make a new archive.
-    memcpy(NewArchive.archive_name, master_file_name, NAME_SIZE); // Copy over the name to the struct.
+    
+    memcpy(NewArchive.archive_name, master_file_name, strlen(master_file_name)); // Copy over the name to the struct.
 
     NewArchive.total_files = 0;
-    NewArchive.master_archive = fopen(master_file_name, "r+"); // Create the master archive with read write invasive mode. (Deletes archive file if it already exists)
     NewArchive.head = malloc(sizeof(Archive_File_t)); //Allocate the list inside of the master archive.
-    if(fclose(NewArchive.master_archive) != 0){ // stream didn't close correctly.
-        fprintf(stderr, "Stream not successfully closed");
-    }
 
     return NewArchive;
 }
@@ -76,17 +72,12 @@ Archive_t Archive_Create(char* master_file_name){
 void Archive_Append_File(Archive_t* p_archive, char* file_name){
     
     Archive_File_t* new_ar_file = malloc(sizeof(Archive_File_t)); // Creating a new archive file node.
-
+    new_ar_file->next = NULL;
+    printf("File name thing: %s\n", file_name);
+    // ! Not null terminated
     new_ar_file->archive_file_name = malloc(sizeof(char) * (strlen(file_name) + 1)); // Create enough space in the struct to fit in the file name PLUS the null byte.
     
     strcpy(new_ar_file->archive_file_name, file_name); // Copy over the file name into the object.
-
-    new_ar_file->archive_file = fopen(new_ar_file->archive_file_name, "r"); // read the file, then write the contents to the master archive.
-
-    if(new_ar_file->archive_file == NULL){ // If the file doesn't open, then cause a read error.
-        perror("Read error occured, please check if the file exists. Exiting with error code.\n");
-        exit(1); 
-    }
 
     ArFile_Write_Header(new_ar_file); // Write the file headers. 
 
@@ -103,6 +94,7 @@ void Archive_Append_File(Archive_t* p_archive, char* file_name){
 
     // If the head is filled, traverse to the end of the list.
     Archive_File_t* temp_head = p_archive->head; // Make a temporary head for traversal.
+
     while(temp_head->next != NULL){
         
         temp_head = temp_head->next;
@@ -110,7 +102,7 @@ void Archive_Append_File(Archive_t* p_archive, char* file_name){
 
     // We're at the end of the list. Set the next node to null .
     temp_head->next = new_ar_file;
-    
+
     return;
 }
 
@@ -174,6 +166,7 @@ void ArFile_Write_Header(Archive_File_t* p_ar_file){
     free(fileInfo); // free the stat buffer that we allocated.
 }
 
+
 /**
  * @brief Given a pointer to an archive file, free all of the resources attached to it. Returns 1 if succeeded, 0 if failed.
  * 
@@ -183,10 +176,141 @@ void ArFile_Write_Header(Archive_File_t* p_ar_file){
 int Archive_Free_File(Archive_File_t* p_ar_file){
     // TODO: Free file info, free current 
     
-    free(p_ar_file->archive_file_name); // free the name we had when we appended.
+    // free(p_ar_file->archive_file_name); // free the name we had when we appended.
     free(p_ar_file); // Free the actual file.
     
     return 1;
+}
+/**
+ * @brief Get the file numbers from a archive file.
+ * 
+ * @param archive 
+ * @param ar_name 
+ * @return long 
+ */
+long ar_get_file_num(Archive_t* archive, char* ar_name){
+    Ar_hdr_t header;
+    int bytes_read = SARMAG;
+    long file_num = 0;
+    archive->master_archive = fopen(ar_name, "r");
+    char header_buff[AR_HEADER_SIZE];
+    fseek(archive->master_archive, 0, SEEK_END);
+    int file_size = ftell(archive->master_archive); 
+    while(bytes_read < file_size){
+        fseek(archive->master_archive, bytes_read, SEEK_SET); // 8 bytes from the beginning, skipping armag.
+        memset(header_buff, ' ', AR_HEADER_SIZE); // empty buffer.
+        fread(header_buff, AR_HEADER_SIZE, 1, archive->master_archive); // read 60 bytes of data from stream.
+        memcpy(&header, header_buff, AR_HEADER_SIZE); // Sets the header to the data.
+        bytes_read = bytes_read + AR_HEADER_SIZE + get_hdr_size(&header); // Hopefully skips over the file content.
+        file_num++;
+    }
+    return file_num;
+}
+
+/**
+ * @brief Assumes you already added the data into the archive file.
+ * 
+ * @param archive 
+ * @param ar_file 
+ */
+void good_append(Archive_t* archive, Archive_File_t* ar_file){
+    Archive_File_t* new_node = malloc(sizeof(Archive_File_t));
+    Archive_File_t* temp_node = archive->head;
+    //Archive_File_t* last = archive->head;
+    long ar_fsize = get_hdr_size(&ar_file->arch_head);
+    memcpy(new_node, ar_file, sizeof(Archive_File_t));
+
+    new_node->next = NULL;
+
+    if(archive->head->archive_file_name == 0x0){
+        printf("Something happend\n");
+        archive->head = new_node;
+        return;
+    }
+
+    while(temp_node->next != NULL){
+        temp_node = temp_node->next;
+    }
+
+    temp_node->next = new_node;
+    return;
+
+}
+
+/**
+ * @brief This is not for extraction, this is for reconstruction of the archive linked list. The archive must be Created beforehand with Archive_Create.
+ * 
+ * @param archive 
+ * @param archive_name 
+ */
+void Archive_Retrieve(Archive_t* archive, char* archive_name){
+    // * The point of this is given the old archive name, construct a new archive linked list out of the contents of the old one.
+    char armag[SARMAG]; // yoink the magic numbers.
+    char header_buff[AR_HEADER_SIZE]; // make a thing to fit the header.
+    char ar_fname[AR_NAME_SIZE]; // make buffer for the name.
+    char ssize[AR_HEADER_SIZE]; // more size data.
+    long file_size;
+    int curr_byte = 0;
+    int curr_hbyte = 0;
+    int byte;
+    Ar_hdr_t header;
+    Archive_File_t append_file;
+    // Archive_t ar_copy = Archive_Create(archive_name);
+    Archive_File_t new_file; // head ref
+    Archive_File_t* temp = archive->head; // TODO: WORK WITH THE LAST NODE AND CONNECT THESE CORRECTLY.
+    archive->master_archive = fopen(archive_name, "r");
+    if (archive->master_archive == NULL){
+        perror("Error occured with reading data.\n");
+        exit(-1);
+    }
+    // Check if the file is an archive file.
+    fseek(archive->master_archive, -1, SEEK_SET); // Go to beginning of file.
+    memset(armag, ' ', SARMAG);
+    fread(armag, SARMAG, 1, archive->master_archive); // read the first 8 bytes.
+    // printf("Strings: %s, %s", armag, ARMAG);
+
+    if(memcmp(armag, ARMAG, SARMAG) == 0){ // The bytes are the same.
+        printf("This is a valid archive file. Extracting data...\n");
+    }else{
+        printf("Strings: %s, %s", armag, ARMAG);
+        printf("Not an ar file or doesn't exist.\n");
+        exit(-1);
+    }
+
+    char* file_data; // malloc this to the file size.
+    // Append this.
+
+    // If the head is filled, traverse to the end of the list.
+    for(int i = 0; i < archive->total_files; i++){
+        memset(header_buff, ' ', AR_HEADER_SIZE); // empty buffer.
+        fread(header_buff, AR_HEADER_SIZE, 1, archive->master_archive); // read 60 bytes of data from stream.
+        memcpy(&header, header_buff, AR_HEADER_SIZE); // copy the contents of the buffer into the current head memory block. 
+        
+        // * Copies header into struct.
+        long file_size = get_hdr_size(&header);
+
+        // * Copy file data.
+        // ! If this breaks, change to a plus 1.
+        file_data = malloc(sizeof(char) * file_size); // allocates a buffer of the file contents.
+        fread(file_data, file_size, 1, archive->master_archive); // read the file contents into the buffer.
+        
+        new_file.file_contents = malloc(sizeof(char) * file_size);
+
+        memcpy(new_file.file_contents, file_data, sizeof(char) * file_size); // hopefully copies correctly, idfk.
+        memcpy(&new_file.arch_head, &header, AR_HEADER_SIZE);
+        new_file.archive_file_name = malloc(sizeof(char) * AR_NAME_SIZE);
+        char* thing = strstr(new_file.arch_head.ar_name, "/");
+        *thing = 0;
+        memcpy(new_file.archive_file_name, new_file.arch_head.ar_name, strlen(new_file.arch_head.ar_name));
+
+        // TODO: assign header, then assign content.
+        new_file.next = NULL;
+        good_append(archive, &new_file);
+
+    }
+
+    return;
+
 }
 
 //TODO: Complete deletion from archive.
@@ -197,21 +321,23 @@ int Archive_Free_File(Archive_File_t* p_ar_file){
  * @param target_file 
  */
 void Archive_Delete_File(Archive_t* master_ar, char* target_file){
-    // Go through the linked list and find the name of the file to delete. 
-    
+    // Go through the linked list and find the name of the file to delete.
+
+    master_ar->head->archive_file = fopen(target_file, "r"); // ? Idk why you did this
     Archive_File_t* temp_head = master_ar->head; // temp head.
+    
     Archive_File_t* prev;
 
     // ? Search for the name to be deleted.
-    printf("Name given: %s, name to delete: %s\n", temp_head->arch_head.ar_name, target_file);
+    printf("Name given: %s, name to delete: %s\n", temp_head->archive_file_name, target_file);
     // if the head is the key delete it & drop next ptr.
-    if(temp_head != NULL && temp_head->arch_head.ar_name == target_file){
+    if(temp_head != NULL && strcmp(temp_head->arch_head.ar_name, target_file) == 0){
         master_ar->head = temp_head->next; // change head
         Archive_Free_File(temp_head); // Free the old head.
         return;
     }
     // Search for the name to delete.
-    while(temp_head != NULL && temp_head->arch_head.ar_name != target_file){
+    while(temp_head != NULL && strcmp(temp_head->arch_head.ar_name, target_file)){
         prev = temp_head; // Keep track of previous
         temp_head = temp_head->next; // traverse to next one.
     }
@@ -245,8 +371,6 @@ long get_hdr_size(Ar_hdr_t* h){
     return strtol(buf, NULL, AR_FSIZE_SIZE);
 }
 
-
-
 /**
  * @brief This method takes a master archive and an archive file that you
  *  want to add to the master archive file and writes it to the master archive file.
@@ -262,10 +386,10 @@ void Archive_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file){
     char* data_buffer = malloc(sizeof(char) * file_size); // make enough space to copy over the contents of the file.
 
     new_ar_file->archive_file = fopen(new_ar_file->archive_file_name, "r");
-    master_ar->master_archive = fopen(new_ar_file->archive_file_name, "a+"); // open file stream to append.
+    master_ar->master_archive = fopen(master_ar->archive_name, "a+"); // open file stream to append.
 
     // Open a stream to the master archive, if the stream is open, then JUST write to the stream, don't attempt to open a new one.
-    if(master_ar->master_archive != NULL){ // The stream is open.
+    if(master_ar->master_archive != NULL || new_ar_file->archive_file != NULL){ // The stream is open.
         printf("Stream is open in Archive_Write_Master.\n");
     }else{
         perror("It seems that the master archive stream is closed in Archive_Write_Master, or something went wrong and the fopen in the Archive_Create isn't persistent. \n");
@@ -275,7 +399,7 @@ void Archive_Write_Master(Archive_t* master_ar, Archive_File_t* new_ar_file){
     
     fwrite(&new_ar_file->arch_head, AR_HEADER_SIZE, 1, master_ar->master_archive);
 
-    // ? Reading from the 
+    // ? Reading from the  file into the buffer.
     fread(data_buffer, file_size, 1, new_ar_file->archive_file);
     
     fwrite(data_buffer, file_size, 1, master_ar->master_archive);
