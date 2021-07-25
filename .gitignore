@@ -3,3 +3,5 @@
 *.ar
 .gdb_history
 myar
+*.zip
+*.rar
