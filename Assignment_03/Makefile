@@ -17,7 +17,7 @@ FTMACROS = _POSIX_SOURCE _GNU_SOURCE
 
 # --------------------------------------- Below is config stuff ------------------------------------------------
 
-#LDFLAGS: Extra flags to give to compilers when they are supposed to invoke the linker
+# LDFLAGS: Extra flags to give to compilers when they are supposed to invoke the linker
 
 # This conditional snippet checks to see if the feature test macros variable is set to anything, if it is then we add prefixes to the expanded
 # variable list, if it's not defined, then we leave the EXP variable blank so that we can add it to the compile flags.

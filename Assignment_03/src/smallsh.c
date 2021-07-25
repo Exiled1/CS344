@@ -186,7 +186,6 @@ int smsh_exec_BIs(char** commands, bool* background){
         current_arg++; // Poggers.
     }
 
-
     if(current_arg - 1 != 0 && strcmp(commands[--current_arg], SM_BG_TOK) == SUCCESS){ // Our last argument has the ability to be the background token.
         commands[current_arg] = NULL; // Make this argument disappear, set background flag.
         printf("& Flag recieved.\n");
@@ -201,6 +200,7 @@ int smsh_exec_BIs(char** commands, bool* background){
             return (*smsh_bi_funcs[current_arg])(commands); // ? execute the command with the given arguments.
         }
     }
+
     return SUCCESS;
 }
 
@@ -222,6 +222,7 @@ int smsh_exec_nonBIs(char** commands, bool background){
  * @return char* 
  */
 char* smsh_expand_pid(char* pid_token){
+    //TODO: Currently replaces the entire word if it's in a word.
     pid_t shell_pid = getpid(); // Get my shell pid. -> 12
     // 12 -> "12"
     int buf_len = snprintf(NULL, 0, "%d", shell_pid); // Start a dry run to get the size of the pid - \0
@@ -233,8 +234,23 @@ char* smsh_expand_pid(char* pid_token){
 
 // ------------------------------------ Built in command functions
 // exit, status, cd
-int smsh_cd (char **args){
-    printf("CD WIP\n");
+/**
+ * @brief Changes the directory of smallsh, if given no arguments it'll change directories based off of your home path, if given an argument it'll traverse 
+ * 
+ * @param args 
+ * @return int 
+ */
+int smsh_cd (char **arguments){
+    // ? with no arguments, go to home.
+    if(arguments[1] == '\0'){
+        chdir(getenv("HOME"));
+    } else{    // With arguments, change directories to that path.
+        if(chdir(arguments[1]) == -1){
+            fprintf(stderr, "Failed to change directories, please make sure the directory exists or is a directory.");
+            // Shouldn't exit, since they could have gone to a non existent directory, or a file isn't a directory.
+        }
+    }
+    // ! Btw I can't fuckin test this without ls... fml.
     return SUCCESS;
 }
 
