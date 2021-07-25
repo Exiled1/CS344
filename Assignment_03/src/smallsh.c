@@ -60,6 +60,10 @@ void shell_init(){
         input_str = smsh_read_line(); // Read in input from stdin.
         args = smsh_split_line(input_str); // Split the line by ' ' and '\n'
         state = smsh_exec_cmd(args); // Execute valid commands.
+        for(i = 0; args[i] != NULL; i++){
+            printf("%s\n", args[i]);
+        }
+
     }while(state != FAILURE);
 }
 // Driver code ^^ 
@@ -149,9 +153,10 @@ int smsh_exec_cmd(char** commands){
     int built_success = 0, nonbuilt_success = 0;
     bool background = false; // Setting background for later.
     
-    built_success = smsh_exec_BIs(commands, &background); // Check for built-ins, sets the & flag here.
+    built_success = smsh_exec_BIs(commands, &background); // Check  for built-ins, sets the & flag here.
     nonbuilt_success = smsh_exec_nonBIs(commands, background); // Check for non built ins.
-    
+    int i = 0;
+
     if(built_success == FAILURE || nonbuilt_success == FAILURE){
         return FAILURE;
     }
@@ -181,6 +186,7 @@ int smsh_exec_BIs(char** commands, bool* background){
         current_arg++; // Poggers.
     }
 
+
     if(current_arg - 1 != 0 && strcmp(commands[--current_arg], SM_BG_TOK) == SUCCESS){ // Our last argument has the ability to be the background token.
         commands[current_arg] = NULL; // Make this argument disappear, set background flag.
         printf("& Flag recieved.\n");
@@ -209,10 +215,20 @@ int smsh_exec_nonBIs(char** commands, bool background){
 }
 
 // ----------- BASHPID stuff.
-
+/**
+ * @brief Whenever this is called, replace the old output with this <3
+ * 
+ * @param pid_token 
+ * @return char* 
+ */
 char* smsh_expand_pid(char* pid_token){
-    printf("Expansion $$ WIP\n");
-    return "rawr";
+    pid_t shell_pid = getpid(); // Get my shell pid. -> 12
+    // 12 -> "12"
+    int buf_len = snprintf(NULL, 0, "%d", shell_pid); // Start a dry run to get the size of the pid - \0
+    char* pid_buf = malloc(sizeof(char) * buf_len + 1); // allocate a buffer with the length of the pid PLUS the \0
+    snprintf(pid_buf, buf_len + 1, "%d", shell_pid); // int -> str + \0
+    printf("Returning %s\n", pid_buf);
+    return pid_buf;
 }
 
 // ------------------------------------ Built in command functions
@@ -221,10 +237,12 @@ int smsh_cd (char **args){
     printf("CD WIP\n");
     return SUCCESS;
 }
+
 int smsh_status(char **args){
     printf("Status WIP\n");
     return SUCCESS;
 }
+
 int smsh_exit(char **args){
     printf("Exit WIP\n");
     exit(SUCCESS);
@@ -241,7 +259,7 @@ int smsh_exit(char **args){
  */
 void smsh_sigint_handler(){
     //kill(fg_pid, SIGINT); // Kill the foreground process.
-    printf("Recieved a SIGINT. WIP.\n: ");
+    printf("Recieved a SIGINT. WIP.\n\n: ");
 }
 
 
