@@ -36,7 +36,7 @@ endif
 
 
 CC=gcc
-CFLAGS= -std=c11 -g3 -O0 -Werror $(HDIR) $(EXP)
+CFLAGS= -std=c11 -g3 -Wall -O0 $(HDIR) $(EXP)
 
 # This default goal is to make your main target, it'll go and create an executable file in the specified VPATH 
 .DEFAULT_GOAL := $(TARGET)

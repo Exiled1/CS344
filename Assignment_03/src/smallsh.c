@@ -10,8 +10,9 @@
 #include<fcntl.h>   
 #include<stdbool.h> 
 #include<signal.h>  
+#include "smallsh.h"
 
-#define PROMPT_CHAR ": "
+#define SM_PROMPT_CHAR ": "
 #define SM_DELIMS " \n"
 #define COMMENT '#'
 #define BASHPID "$$"
@@ -21,22 +22,9 @@
 #define SUCCESS 0
 #define FAILURE 1
 
-int fg_pid = 0; // Global foreground process PID tracker.
-bool g_smsh_background = true;  
-
-
-void smsh_sigint_handler();
-void shell_init();
-char* smsh_read_line();
-void check_buffer(int taken_size);
-char** smsh_split_line(char* input_line);
-int smsh_exec_cmd(char** args);
-int smsh_exec_nonBIs(char** commands, bool background);
-int smsh_exec_BIs(char** commands, bool* background);
-char* smsh_expand_pid(char* pid_token);
-int smsh_cd (char **args);
-int smsh_status(char **args);
-int smsh_exit(char **args);
+int g_child_status = 0; // Child status is set to whatever the Process->exit_status is.
+int g_fg_pid = 0; // Global foreground process PID tracker.
+bool g_smsh_background_allowed = true; // For triggering non bg/bg mode
 
 /**
  * @brief Shell driver code, doesn't take in arguments since that'd be weird.
@@ -49,21 +37,19 @@ int main(void)
     return 0;
 }
 
-
 void shell_init(){
     char* input_str;
     char** args;
     int state; // state flag to keep track of the program
     int i = 0;
     do{
-        printf(PROMPT_CHAR); // Print the : thingie, or something else.
+        printf(SM_PROMPT_CHAR); // Print the : thingie, or something else.
         input_str = smsh_read_line(); // Read in input from stdin.
         args = smsh_split_line(input_str); // Split the line by ' ' and '\n'
         state = smsh_exec_cmd(args); // Execute valid commands.
         for(i = 0; args[i] != NULL; i++){
             printf("%s\n", args[i]);
         }
-
     }while(state != FAILURE);
 }
 // Driver code ^^ 
@@ -102,10 +88,9 @@ char* smsh_read_line(){
 
     long buffer_size = MAX_BUFFSIZE; // set our buffer size for getline.
     char* input_cmd = NULL; // we got an empty line.
-    
     // Our parent shell ignores SIGINT
     signal(SIGINT, smsh_sigint_handler); // Save til later
-
+    
     getline(&input_cmd, &buffer_size, stdin);
 
     if(feof(stdin)){ // Check if we've recieved an EOF from the user after their getline.
@@ -155,11 +140,12 @@ int smsh_exec_cmd(char** commands){
     
     built_success = smsh_exec_BIs(commands, &background); // Check  for built-ins, sets the & flag here.
     nonbuilt_success = smsh_exec_nonBIs(commands, background); // Check for non built ins.
-    int i = 0;
+    // int i = 0;
 
     if(built_success == FAILURE || nonbuilt_success == FAILURE){
         return FAILURE;
     }
+    return SUCCESS;
 }
 
 
@@ -240,29 +226,55 @@ char* smsh_expand_pid(char* pid_token){
  * @param args 
  * @return int 
  */
-int smsh_cd (char **arguments){
+int smsh_cd (char **arguments){ // ? complete 
+    long dir_size;
+    char* buff;
+    char* ptr;
+
     // ? with no arguments, go to home.
-    if(arguments[1] == '\0'){
+    if(arguments[1] == NULL){
         chdir(getenv("HOME"));
     } else{    // With arguments, change directories to that path.
         if(chdir(arguments[1]) == -1){
             fprintf(stderr, "Failed to change directories, please make sure the directory exists or is a directory.");
             // Shouldn't exit, since they could have gone to a non existent directory, or a file isn't a directory.
+            fflush(stdout); // Flush the buffers to stdout so my error works.
         }
     }
-    // ! Btw I can't fuckin test this without ls... fml.
+    // ! Remove this debug code later. 
+    dir_size = pathconf(".", _PC_PATH_MAX);
+    if ((buff = (char *)malloc((size_t)dir_size)) != NULL) // testing code from man pages.
+        ptr = getcwd(buff, (size_t)dir_size);
+
+    printf("%s\n", buff);
     return SUCCESS;
 }
 
-int smsh_status(char **args){
-    printf("Status WIP\n");
+/**
+ * @brief Print the exit status of a process.
+ * 
+ * @param args 
+ * @return int 
+ */
+int smsh_status(char **args){ // maybe done.
+    //TODO: Print the exit status of a process.
+    if(WIFEXITED(g_child_status)){
+        printf("Normal exit. Status: %d\n", WEXITSTATUS(g_child_status));
+    }else{
+        printf("Abnormal termination. Status: %d\n", WTERMSIG(g_child_status));
+    }
+
     return SUCCESS;
 }
-
+/**
+ * @brief Exit process, called when exit is typed, removes the group processes.
+ * 
+ * @param args 
+ * @return int 
+ */
 int smsh_exit(char **args){
-    printf("Exit WIP\n");
-    exit(SUCCESS);
-    return SUCCESS;
+    kill(g_fg_pid, SIGTERM); // Kindly ask the group processes to terminate.
+    return FAILURE; // Not actually a failure, but I have this set to loop til it fails.
 }
 
 
@@ -274,8 +286,10 @@ int smsh_exit(char **args){
  * 
  */
 void smsh_sigint_handler(){
-    //kill(fg_pid, SIGINT); // Kill the foreground process.
-    printf("Recieved a SIGINT. WIP.\n\n: ");
+    //kill(g_fg_pid, SIGINT); // Kill the foreground process.
+    printf("Recieved a SIGINT. WIP.\n");
+    printf(": ");
+    fflush(stdout);
 }
 
 
