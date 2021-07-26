@@ -1,5 +1,6 @@
 #ifndef ASSIGNMENT_03_INCLUDE_SMALLSH
 #define ASSIGNMENT_03_INCLUDE_SMALLSH
+#include "process.h"
 
 void smsh_sigint_handler();
 void shell_init();
@@ -13,5 +14,6 @@ char* smsh_expand_pid(char* pid_token);
 int smsh_cd (char **args);
 int smsh_status(char **args);
 int smsh_exit(char **args);
+void smsh_check_processes(Process_t* process_list);
 
 #endif /* ASSIGNMENT_03_INCLUDE_SMALLSH */

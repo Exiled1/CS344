@@ -54,6 +54,10 @@ void shell_init(){
 }
 // Driver code ^^ 
 
+// ------------------------------------- END DRIVER CODE
+
+// ------------------------------------- CONSTANTS AND FUNCTION LISTS START
+
 
 // List of built in commands.
 
@@ -78,6 +82,10 @@ int (*smsh_bi_funcs[])(char** arguments) = {
 int smsh_builtin_num(){
     return sizeof(smsh_builtin_commands) / sizeof(char*);
 }
+// ------------------------------------- CONSTANTS AND FUNCTION LISTS END
+
+
+// ----------------------------------- START PARSING
 
 /**
  * @brief Read the lines that come in, no parsey parsey.
@@ -125,6 +133,9 @@ char** smsh_split_line(char* input_line){
 
     return tokens; 
 }
+// ------------------------------------ END OF PARSING
+
+// ------------------------------------ COMMANDS START
 
 /**
  * @brief Execute all commands. Return 1 if failed, 0 as success.
@@ -191,16 +202,33 @@ int smsh_exec_BIs(char** commands, bool* background){
 }
 
 /**
- * @brief Execute non built in commands.
+ * @brief Execute non built in commands. These can be run in the background.
  * 
  * @param commands 
  * @return int 
  */
 int smsh_exec_nonBIs(char** commands, bool background){
+    /**
+     * @brief Make processes, record their IDs with their input/output files, statuses.
+     * handle '<', '>', also background process handling to /dev/null,
+     * 
+     */
     return SUCCESS;
 }
 
-// ----------- BASHPID stuff.
+// --------------------------- PROCESS CHECKING.
+/**
+ * @brief Checks for terminated processes.
+ * 
+ * @param process_list 
+ */
+void smsh_check_processes(Process_t* process_list){
+    printf("check_processes WIP.\n");
+}
+
+
+// --------------------------- BASHPID stuff.
+
 /**
  * @brief Whenever this is called, replace the old output with this <3
  * 
@@ -208,7 +236,7 @@ int smsh_exec_nonBIs(char** commands, bool background){
  * @return char* 
  */
 char* smsh_expand_pid(char* pid_token){
-    //TODO: Currently replaces the entire word if it's in a word.
+    //TODO: Currently replaces the entire word if it's in a word, fix this later.
     pid_t shell_pid = getpid(); // Get my shell pid. -> 12
     // 12 -> "12"
     int buf_len = snprintf(NULL, 0, "%d", shell_pid); // Start a dry run to get the size of the pid - \0
