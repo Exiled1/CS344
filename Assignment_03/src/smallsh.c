@@ -1,15 +1,15 @@
 /**
  * 
  */
-
-#include<stdio.h>   
-#include<stdlib.h>  
-#include<string.h>  
-#include<unistd.h>  
-#include<sys/wait.h>
-#include<fcntl.h>   
-#include<stdbool.h> 
-#include<signal.h>  
+#include <errno.h>
+#include <stdio.h>   
+#include <stdlib.h>  
+#include <string.h>  
+#include <unistd.h>  
+#include <sys/wait.h>
+#include <fcntl.h>   
+#include <stdbool.h> 
+#include <signal.h>  
 #include "smallsh.h"
 
 #define SM_PROMPT_CHAR ": "
@@ -25,6 +25,7 @@
 int g_child_status = 0; // Child status is set to whatever the Process->exit_status is.
 int g_fg_pid = 0; // Global foreground process PID tracker.
 bool g_smsh_background_allowed = true; // For triggering non bg/bg mode
+Process_t* process_list = NULL; // To keep track of processes.
 
 /**
  * @brief Shell driver code, doesn't take in arguments since that'd be weird.
@@ -47,9 +48,6 @@ void shell_init(){
         input_str = smsh_read_line(); // Read in input from stdin.
         args = smsh_split_line(input_str); // Split the line by ' ' and '\n'
         state = smsh_exec_cmd(args); // Execute valid commands.
-        for(i = 0; args[i] != NULL; i++){
-            printf("%s\n", args[i]);
-        }
     }while(state != FAILURE);
 }
 // Driver code ^^ 
@@ -133,6 +131,7 @@ char** smsh_split_line(char* input_line){
 
     return tokens; 
 }
+
 // ------------------------------------ END OF PARSING
 
 // ------------------------------------ COMMANDS START
@@ -211,8 +210,34 @@ int smsh_exec_nonBIs(char** commands, bool background){
     /**
      * @brief Make processes, record their IDs with their input/output files, statuses.
      * handle '<', '>', also background process handling to /dev/null,
-     * 
+     * Most of the points are from here.
      */
+    // ? Essentially, create a fork of our process and then replace our current process with exec.
+    pid_t spawnpid; 
+    int child_status;
+
+    spawnpid = fork(); // spawn a new process.
+    switch(spawnpid){
+        case -1:// fork failed.
+            fprintf(stderr, "Fork failed to open: [Errno = %d, errstr = %s]\n", errno, strerror(errno));
+            exit(1); // ! Maybe later clear all of the resources if we've failed to fork.
+            break;
+        case 0: // Fork succeeded and we now have a child process. No use getting a pid since children pid == 0.
+            // Replace the current program with the given terminal command.
+            execvp(commands[0], commands); // Hopefully should execute the right behavior, after here it should never return. So provide an error.
+            fprintf(stderr, "Execvp Error: Parent(%d): Child(%d) [Errno = %d, errstr = %s]\n", getpid(), spawnpid, errno, strerror(errno));
+            // ^^ Give a verbose error.
+            exit(2);
+            break;
+        default: // Parent process await child termination.
+            spawnpid = waitpid(spawnpid, &child_status, 0); // 0 is for no flags, gotta figure out what the flags are later.
+            // TODO: Work on background and foreground mode for these, for now these are always foreground.
+            // TODO: Also work on the process queue for children.
+    }
+
+    // After some googling, execvp will probably be the best to use since it uses my path variable 
+    // without having to specify.
+
     return SUCCESS;
 }
 
@@ -264,7 +289,8 @@ int smsh_cd (char **arguments){ // ? complete
         chdir(getenv("HOME"));
     } else{    // With arguments, change directories to that path.
         if(chdir(arguments[1]) == -1){
-            fprintf(stderr, "Failed to change directories, please make sure the directory exists or is a directory.");
+            fprintf(stderr, "Failed to change directories to %s. [Errno = %d, errstr = %s]\n",arguments[1], errno, strerror(errno));
+            
             // Shouldn't exit, since they could have gone to a non existent directory, or a file isn't a directory.
             fflush(stdout); // Flush the buffers to stdout so my error works.
         }
