@@ -21,6 +21,13 @@
 #define ARGMAX 512  // max args for a command.
 #define SUCCESS 0
 #define FAILURE 1
+#define CONTINUE 2 // To continue with execution.
+#define READ_ACCESS O_RDONLY
+#define READ_WR_TRUNC O_WRONLY | O_CREAT | O_TRUNC
+#define OWN_RW_ACC 0644
+#define SILENT_OUT "/dev/null"
+#define INPUT_FLAG 1
+#define OUTPUT_FLAG 2
 
 int g_child_status = 0; // Child status is set to whatever the Process->exit_status is.
 int g_fg_pid = 0; // Global foreground process PID tracker.
@@ -92,7 +99,7 @@ int smsh_builtin_num(){
  */
 char* smsh_read_line(){
 
-    long buffer_size = MAX_BUFFSIZE; // set our buffer size for getline.
+    size_t buffer_size = MAX_BUFFSIZE; // set our buffer size for getline.
     char* input_cmd = NULL; // we got an empty line.
     // Our parent shell ignores SIGINT
     signal(SIGINT, smsh_sigint_handler); // Save til later
@@ -143,14 +150,16 @@ char** smsh_split_line(char* input_line){
  * @return int 
  */
 int smsh_exec_cmd(char** commands){
-    // TODO: Handle comments, $$, &
-    // TODO: Handle builtin commands: exit, cd, status.
+    // TODO: Handle comments, $$, &                         [✓]
+    // TODO: Handle builtin commands: exit, cd, status.     [✓]
     int built_success = 0, nonbuilt_success = 0;
     bool background = false; // Setting background for later.
+    //! Currently has the issue of 
+    built_success = smsh_exec_BIs(commands, &background); // Check for built-ins, sets the & flag here.
+    if (built_success == CONTINUE){ // If the built-ins haven't been used, continue onto the built-ins.
+        nonbuilt_success = smsh_exec_nonBIs(commands, background); // Check for non built ins.
+    }
     
-    built_success = smsh_exec_BIs(commands, &background); // Check  for built-ins, sets the & flag here.
-    nonbuilt_success = smsh_exec_nonBIs(commands, background); // Check for non built ins.
-    // int i = 0;
 
     if(built_success == FAILURE || nonbuilt_success == FAILURE){
         return FAILURE;
@@ -170,7 +179,7 @@ int smsh_exec_BIs(char** commands, bool* background){
     int current_arg = 0;
     // TODO: # Done.
     if(commands[0] == NULL || strchr(*commands, COMMENT) != NULL){
-        printf("Comment/NULL recieved.\n");
+        //printf("Comment/NULL recieved.\n");
         return SUCCESS;
     }
     // TODO: $$ and &
@@ -184,7 +193,7 @@ int smsh_exec_BIs(char** commands, bool* background){
 
     if(current_arg - 1 != 0 && strcmp(commands[--current_arg], SM_BG_TOK) == SUCCESS){ // Our last argument has the ability to be the background token.
         commands[current_arg] = NULL; // Make this argument disappear, set background flag.
-        printf("& Flag recieved.\n");
+        // printf("& Flag recieved.\n");
         *background = true; // Run the rest of the things in background mode.
     }
 
@@ -197,8 +206,58 @@ int smsh_exec_BIs(char** commands, bool* background){
         }
     }
 
-    return SUCCESS;
+    return CONTINUE; // If none of these have been run, continue to the next set of command parsing.
 }
+
+/**
+ * @brief This method handles input redirection and writes the output from the command into a file. TC: O(N)
+ * 
+ * @param commands 
+ * @param background 
+ */
+void smsh_input_redir(char** commands, bool background){
+    int curr_arg = 0;
+    int new_fd; // New file descriptor to handle redirection.
+    int in_out_flag = 0;
+    // background = false;
+    while(commands[curr_arg] != NULL){ // Read the input til the end. O(N)
+        if(strcmp(commands[curr_arg], "<") == SUCCESS){ // Input redireciton.
+            // printf("Sending input to file\n");
+            in_out_flag = INPUT_FLAG;
+            commands[curr_arg] = NULL; // ! Clear these so we don't send these to the commands.
+            // ? Go to the next argument after finding this, hopefully its not null.
+            curr_arg++;
+            new_fd = open(commands[curr_arg], READ_ACCESS); // Read the data from the file as a file desc.
+            commands[curr_arg] = NULL; 
+            dup2(new_fd, 0); // Makes the file descriptor turn into standard input.
+
+        }else if(strcmp(commands[curr_arg], ">") == SUCCESS){ // If we match output redirection:
+            // printf("Output\n");
+            in_out_flag = OUTPUT_FLAG; // Set our flags for background processing.
+            commands[curr_arg] = NULL; // ! Clear these so we don't send these to the commands.
+            // TODO Make a new file, send our output to that, so make that stdout, which is dup2(__, 1);
+            curr_arg++;
+            new_fd = open(commands[curr_arg], READ_WR_TRUNC, OWN_RW_ACC); 
+            commands[curr_arg] = NULL; // ! Clear these so we don't send these to the commands.
+            dup2(new_fd, 1); // ? Make our file into stdout.
+        }
+        curr_arg++;
+    } // Even though the buffer has been redirected to the files, we still need to flush out the buffered data to complete it.
+    // We can check for background processes and if they're activated we can make the output silent.
+    if(background == true){
+        //printf("Background on.");
+        if (in_out_flag == INPUT_FLAG){ // < is true.
+            new_fd = open(SILENT_OUT, READ_ACCESS); // Open to SILENCE MORTALS.
+            dup2(new_fd, 0); // Makes the file descriptor turn into standard input.
+        }else if(in_out_flag == OUTPUT_FLAG){
+            new_fd = open(SILENT_OUT, READ_WR_TRUNC, OWN_RW_ACC); // WRITE TO NOTHING YOU FOOL. 
+            dup2(new_fd, 1); // ? Reroute our old thing into stdout.
+        }
+    }
+    // printf("Sup nerd\n");
+    //fflush(stdout);
+}
+
 
 /**
  * @brief Execute non built in commands. These can be run in the background.
@@ -224,17 +283,27 @@ int smsh_exec_nonBIs(char** commands, bool background){
             break;
         case 0: // Fork succeeded and we now have a child process. No use getting a pid since children pid == 0.
             // Replace the current program with the given terminal command.
+            // TODO: Handle input/output redirection.
+            smsh_input_redir(commands, background); // Handle input redirection if there's any. 
             execvp(commands[0], commands); // Hopefully should execute the right behavior, after here it should never return. So provide an error.
-            fprintf(stderr, "Execvp Error: Parent(%d): Child(%d) [Errno = %d, errstr = %s]\n", getpid(), spawnpid, errno, strerror(errno));
+
+            // ? This is where we handle the writing portion now, since we can flush the buffer into the respective areas. Maybe?
+            fprintf(stderr, "Execvp Error For %s: Parent(%d): Child(%d) [Errno = %d, errstr = %s]\n",commands[0], getpid(), spawnpid, errno, strerror(errno));
+            
             // ^^ Give a verbose error.
+            //fflush(stdout);
             exit(2);
             break;
-        default: // Parent process await child termination.
+        default: // Parent process await child termination..
+            // fflush(stdout);
             spawnpid = waitpid(spawnpid, &child_status, 0); // 0 is for no flags, gotta figure out what the flags are later.
+            
+            g_child_status = WEXITSTATUS(child_status); // ! Won't get tracked til the process list is implemented.
             // TODO: Work on background and foreground mode for these, for now these are always foreground.
             // TODO: Also work on the process queue for children.
+            break;
     }
-
+    fflush(stdout);
     // After some googling, execvp will probably be the best to use since it uses my path variable 
     // without having to specify.
 
@@ -267,7 +336,7 @@ char* smsh_expand_pid(char* pid_token){
     int buf_len = snprintf(NULL, 0, "%d", shell_pid); // Start a dry run to get the size of the pid - \0
     char* pid_buf = malloc(sizeof(char) * buf_len + 1); // allocate a buffer with the length of the pid PLUS the \0
     snprintf(pid_buf, buf_len + 1, "%d", shell_pid); // int -> str + \0
-    printf("Returning %s\n", pid_buf);
+    // printf("Returning %s\n", pid_buf);
     return pid_buf;
 }
 
