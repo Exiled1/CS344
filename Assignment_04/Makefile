@@ -1,10 +1,10 @@
 
 # THIS IS WHERE YOU SPECIFY THE C SOURCE FILES.
-SOURCES = smallsh.c
+SOURCES = uniqify.c
 
 # Target is the final executable name.
 
-TARGET = smallsh
+TARGET = uniqify
 
 # VPATH is to set the source code path, use this if the path isn't src.
 VPATH =./src/
@@ -13,7 +13,7 @@ VPATH =./src/
 DIRECTORIES = include
 
 # I made this ftmacros variable to expand and include feature test macros automatically.
-FTMACROS = _POSIX_SOURCE _GNU_SOURCE
+FTMACROS = _POSIX_SOURCE _GNU_SOURCE _POSIX_C_SOURCE
 
 # --------------------------------------- Below is config stuff ------------------------------------------------
 
@@ -36,7 +36,7 @@ endif
 
 
 CC=gcc
-CFLAGS= -std=c11 -g3 -Wall -Werror -O0 $(HDIR) $(EXP)
+CFLAGS= -std=c11 -g3 -pthread -Wall -Werror -O0 $(HDIR) $(EXP)
 
 # This default goal is to make your main target, it'll go and create an executable file in the specified VPATH 
 .DEFAULT_GOAL := $(TARGET)

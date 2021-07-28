@@ -2,7 +2,7 @@
  * 
  */
 #include <errno.h>
-#include <stdio.h>   
+#include <stdio.h>
 #include <stdlib.h>  
 #include <string.h>  
 #include <unistd.h>  
@@ -28,6 +28,9 @@
 #define SILENT_OUT "/dev/null"
 #define INPUT_FLAG 1
 #define OUTPUT_FLAG 2
+void smsh_sigtstp_handler();
+void check_bg_processes();
+
 
 int g_child_status = 0; // Child status is set to whatever the Process->exit_status is.
 int g_fg_pid = 0; // Global foreground process PID tracker.
@@ -49,13 +52,21 @@ void shell_init(){
     char* input_str;
     char** args;
     int state; // state flag to keep track of the program
-    int i = 0;
+
     do{
+        check_bg_processes(); // Clear the zombies
         printf(SM_PROMPT_CHAR); // Print the : thingie, or something else.
         input_str = smsh_read_line(); // Read in input from stdin.
         args = smsh_split_line(input_str); // Split the line by ' ' and '\n'
         state = smsh_exec_cmd(args); // Execute valid commands.
+        free(input_str);
+        free(args); // Free the sentence I just made.
     }while(state != FAILURE);
+    
+    check_bg_processes(); // Clear the zombies
+
+    //free(args);
+    exit(1);
 }
 // Driver code ^^ 
 
@@ -68,14 +79,12 @@ void shell_init(){
 
 const char* smsh_builtin_commands[] = {
     "cd",
-    "status",
     "exit"
 };
 
 // Function container, basically, using function pointers, you're able to call a list of functions and pass them arguments as well.
 int (*smsh_bi_funcs[])(char** arguments) = {
     &smsh_cd,
-    &smsh_status,
     &smsh_exit
 };
 
@@ -103,7 +112,7 @@ char* smsh_read_line(){
     char* input_cmd = NULL; // we got an empty line.
     // Our parent shell ignores SIGINT
     signal(SIGINT, smsh_sigint_handler); // Save til later
-    
+    signal(SIGTSTP, smsh_sigtstp_handler);
     getline(&input_cmd, &buffer_size, stdin);
 
     if(feof(stdin)){ // Check if we've recieved an EOF from the user after their getline.
@@ -124,7 +133,7 @@ char* smsh_read_line(){
 char** smsh_split_line(char* input_line){
     // Parse the whole line based off of " ", \n
     char* token;
-    char** tokens = malloc(MAX_BUFFSIZE * sizeof(char*)); // make a max size buffer of strings.
+    char** tokens = malloc(ARGMAX * sizeof(char*)); // make a max size buffer of strings.
     int curr_word = 0; // Tracker.
     
     token = strtok(input_line, SM_DELIMS); // get from spaces and newlines.
@@ -154,7 +163,7 @@ int smsh_exec_cmd(char** commands){
     // TODO: Handle builtin commands: exit, cd, status.     [✓]
     int built_success = 0, nonbuilt_success = 0;
     bool background = false; // Setting background for later.
-    //! Currently has the issue of 
+    
     built_success = smsh_exec_BIs(commands, &background); // Check for built-ins, sets the & flag here.
     if (built_success == CONTINUE){ // If the built-ins haven't been used, continue onto the built-ins.
         nonbuilt_success = smsh_exec_nonBIs(commands, background); // Check for non built ins.
@@ -199,7 +208,11 @@ int smsh_exec_BIs(char** commands, bool* background){
 
     // TODO: Run through the builtins, done.
     // ? Loop through the list of commands, then execute that command if it matches the given command.
-
+    // TODO: Insert the status thing.
+    if(strcmp(commands[0], "status") == SUCCESS){
+        smsh_status(g_child_status);
+        return SUCCESS;
+    }
     for(current_arg = 0; current_arg < smsh_builtin_num(); current_arg++){
         if(strcmp(commands[0], smsh_builtin_commands[current_arg]) == SUCCESS){ // If we've matched the argument to an existing builtin, execute that builtin.
             return (*smsh_bi_funcs[current_arg])(commands); // ? execute the command with the given arguments.
@@ -273,8 +286,9 @@ int smsh_exec_nonBIs(char** commands, bool background){
      */
     // ? Essentially, create a fork of our process and then replace our current process with exec.
     pid_t spawnpid; 
-    int child_status;
-
+    if(g_smsh_background_allowed == false){ // If & isn't allowed, stop it from working.
+        background = false;
+    }
     spawnpid = fork(); // spawn a new process.
     switch(spawnpid){
         case -1:// fork failed.
@@ -284,21 +298,29 @@ int smsh_exec_nonBIs(char** commands, bool background){
         case 0: // Fork succeeded and we now have a child process. No use getting a pid since children pid == 0.
             // Replace the current program with the given terminal command.
             // TODO: Handle input/output redirection.
+            
             smsh_input_redir(commands, background); // Handle input redirection if there's any. 
+            
             execvp(commands[0], commands); // Hopefully should execute the right behavior, after here it should never return. So provide an error.
 
             // ? This is where we handle the writing portion now, since we can flush the buffer into the respective areas. Maybe?
             fprintf(stderr, "Execvp Error For %s: Parent(%d): Child(%d) [Errno = %d, errstr = %s]\n",commands[0], getpid(), spawnpid, errno, strerror(errno));
             
             // ^^ Give a verbose error.
-            //fflush(stdout);
             exit(2);
             break;
         default: // Parent process await child termination..
-            // fflush(stdout);
-            spawnpid = waitpid(spawnpid, &child_status, 0); // 0 is for no flags, gotta figure out what the flags are later.
+            if(background == false){ // If we're in foreground mode.
+                spawnpid = waitpid(spawnpid, &g_child_status, 0); // 0 is for no flags, gotta figure out what the flags are later.
+
+            }else{
+                printf("Background PID: [%d]\n", spawnpid);
+                // TODO: Add spawnpid to background process list.
+                // push_process . . .
+                smsh_push_process(&process_list, spawnpid);
+
+            }
             
-            g_child_status = WEXITSTATUS(child_status); // ! Won't get tracked til the process list is implemented.
             // TODO: Work on background and foreground mode for these, for now these are always foreground.
             // TODO: Also work on the process queue for children.
             break;
@@ -317,9 +339,21 @@ int smsh_exec_nonBIs(char** commands, bool background){
  * @param process_list 
  */
 void smsh_check_processes(Process_t* process_list){
-    printf("check_processes WIP.\n");
-}
+    // printf("check_processes WIP.\n");
 
+}
+/**
+ * @brief Pushes a new process into the process queue.
+ * 
+ * @param process_head 
+ * @param pid 
+ */
+void smsh_push_process(Process_t** process_head, int pid){
+    Process_t* newNode = malloc(sizeof(Process_t)); // make a new node.
+    newNode->pid = pid;// Insert the pid of this thing.
+    newNode->next = (*process_head);
+    (*process_head) = newNode;
+}
 
 // --------------------------- BASHPID stuff.
 
@@ -351,7 +385,7 @@ char* smsh_expand_pid(char* pid_token){
 int smsh_cd (char **arguments){ // ? complete 
     long dir_size;
     char* buff;
-    char* ptr;
+    //char* ptr;
 
     // ? with no arguments, go to home.
     if(arguments[1] == NULL){
@@ -367,9 +401,10 @@ int smsh_cd (char **arguments){ // ? complete
     // ! Remove this debug code later. 
     dir_size = pathconf(".", _PC_PATH_MAX);
     if ((buff = (char *)malloc((size_t)dir_size)) != NULL) // testing code from man pages.
-        ptr = getcwd(buff, (size_t)dir_size);
+        getcwd(buff, (size_t)dir_size);
 
     printf("%s\n", buff);
+    free(buff);
     return SUCCESS;
 }
 
@@ -379,12 +414,13 @@ int smsh_cd (char **arguments){ // ? complete
  * @param args 
  * @return int 
  */
-int smsh_status(char **args){ // maybe done.
+int 
+smsh_status(int status){ // maybe done.
     //TODO: Print the exit status of a process.
-    if(WIFEXITED(g_child_status)){
-        printf("Normal exit. Status: %d\n", WEXITSTATUS(g_child_status));
+    if(WIFEXITED(status)){
+        printf("\nNormal exit. Status: %d\n", WEXITSTATUS(status));
     }else{
-        printf("Abnormal termination. Status: %d\n", WTERMSIG(g_child_status));
+        printf("Abnormal termination. Status: %d\n", WTERMSIG(status));
     }
 
     return SUCCESS;
@@ -396,7 +432,22 @@ int smsh_status(char **args){ // maybe done.
  * @return int 
  */
 int smsh_exit(char **args){
-    kill(g_fg_pid, SIGTERM); // Kindly ask the group processes to terminate.
+    //kill(g_fg_pid, SIGTERM); // Kindly ask the group processes to terminate.
+    Process_t* temp;
+    // TODO: Make a process kill that terminates all running processes.
+    // TODO: Traverse through the process list, kill all of them.
+    if(process_list == NULL){ // if the list is null, exit.
+        return FAILURE; // if there aren't any processes left, return and lets exit.
+    }
+    while(process_list != NULL){
+        temp = process_list;
+        printf("Killing Process Pid: [%d]\n", process_list->pid);
+        kill(process_list->pid, SIGTERM);
+        process_list = process_list->next;
+        free(temp);
+        // If there's any active processes that are alive, kill them.
+    }
+
     return FAILURE; // Not actually a failure, but I have this set to loop til it fails.
 }
 
@@ -405,15 +456,38 @@ int smsh_exit(char **args){
 
 
 /**
- * @brief 
+ * @brief Handler for signal interrupts.
  * 
  */
 void smsh_sigint_handler(){
+    fflush(stdout);
     //kill(g_fg_pid, SIGINT); // Kill the foreground process.
-    printf("Recieved a SIGINT. WIP.\n");
-    printf(": ");
+    printf("\nRecieved a SIGINT.\n:");
     fflush(stdout);
 }
 
+void smsh_sigtstp_handler(){
+    
+    if (g_smsh_background_allowed == true){
+        g_smsh_background_allowed = false;
+    }else {
+        g_smsh_background_allowed = true;
+    }
+    fflush(stdout);
+    printf("\nBackground turned %d\n", g_smsh_background_allowed);
+    
+}
 
 // ------------------------------------ END Signal Handlers
+
+void check_bg_processes(){
+    int status;
+    int pid;
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0) // while we look for terminated children.
+    {
+        // Kill the children ?
+        printf("Terminate all the children. \n");
+        printf("Child with PID: [%d] Terminated. Permanently.\n", pid);
+        smsh_status(status);
+    }
+}
