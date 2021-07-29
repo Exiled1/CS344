@@ -1,6 +1,3 @@
-/**
- * 
- */
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>  
@@ -11,6 +8,7 @@
 #include <stdbool.h> 
 #include <signal.h>  
 #include "smallsh.h"
+#include "strReplace.h"
 
 #define SM_PROMPT_CHAR ": "
 #define SM_DELIMS " \n"
@@ -28,12 +26,10 @@
 #define SILENT_OUT "/dev/null"
 #define INPUT_FLAG 1
 #define OUTPUT_FLAG 2
-void smsh_sigtstp_handler();
-void check_bg_processes();
+
 
 
 int g_child_status = 0; // Child status is set to whatever the Process->exit_status is.
-int g_fg_pid = 0; // Global foreground process PID tracker.
 bool g_smsh_background_allowed = true; // For triggering non bg/bg mode
 Process_t* process_list = NULL; // To keep track of processes.
 
@@ -289,6 +285,7 @@ int smsh_exec_nonBIs(char** commands, bool background){
     if(g_smsh_background_allowed == false){ // If & isn't allowed, stop it from working.
         background = false;
     }
+    
     spawnpid = fork(); // spawn a new process.
     switch(spawnpid){
         case -1:// fork failed.
@@ -333,15 +330,8 @@ int smsh_exec_nonBIs(char** commands, bool background){
 }
 
 // --------------------------- PROCESS CHECKING.
-/**
- * @brief Checks for terminated processes.
- * 
- * @param process_list 
- */
-void smsh_check_processes(Process_t* process_list){
-    // printf("check_processes WIP.\n");
 
-}
+
 /**
  * @brief Pushes a new process into the process queue.
  * 
@@ -364,14 +354,20 @@ void smsh_push_process(Process_t** process_head, int pid){
  * @return char* 
  */
 char* smsh_expand_pid(char* pid_token){
-    //TODO: Currently replaces the entire word if it's in a word, fix this later.
-    pid_t shell_pid = getpid(); // Get my shell pid. -> 12
+    // TODO: Currently replaces the entire word if it's in a word, fix this later.
+    // ! Could potentially have other things inside the string.
+    pid_t shell_pid = getpid(); // Get my shell pid. -> 12                 
     // 12 -> "12"
+    char* result;
     int buf_len = snprintf(NULL, 0, "%d", shell_pid); // Start a dry run to get the size of the pid - \0
-    char* pid_buf = malloc(sizeof(char) * buf_len + 1); // allocate a buffer with the length of the pid PLUS the \0
+    
+    char* pid_buf = malloc(sizeof(char) * (buf_len + strlen(pid_token)) + 1); // allocate a buffer with the length of the pid PLUS the \0
+    
     snprintf(pid_buf, buf_len + 1, "%d", shell_pid); // int -> str + \0
     // printf("Returning %s\n", pid_buf);
-    return pid_buf;
+    result = replaceWord(pid_token, "$$", pid_buf);
+    
+    return result;
 }
 
 // ------------------------------------ Built in command functions
@@ -404,7 +400,7 @@ int smsh_cd (char **arguments){ // ? complete
         getcwd(buff, (size_t)dir_size);
 
     printf("%s\n", buff);
-    free(buff);
+    free(buff); // LET MY MEMORY GOOOOO.
     return SUCCESS;
 }
 

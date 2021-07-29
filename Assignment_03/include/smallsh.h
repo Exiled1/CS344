@@ -14,8 +14,9 @@ char* smsh_expand_pid(char* pid_token);
 int smsh_cd (char **args);
 int smsh_status(int status);
 int smsh_exit(char **args);
-void smsh_check_processes(Process_t* process_list);
 void smsh_push_process(Process_t** process_head, int pid);
 void smsh_input_redir(char** commands, bool background);
+void smsh_sigtstp_handler();
+void check_bg_processes();
 
 #endif /* ASSIGNMENT_03_INCLUDE_SMALLSH */
