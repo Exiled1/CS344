@@ -25,8 +25,49 @@
 
 // char* g_input_line;
 char g_prev_word[LINE_SIZE] = ""; // fite me.
-
 int g_word_count = 1; // For counting the shit through semaphores using IPC.
+
+typedef int** fd_list_t;
+
+
+void sort_pipe_init(int task_num, fd_list_t input_fds, fd_list_t sorting_fds){
+    // TODO: Create the pipes to the sort process.
+}
+
+void string_sanitize(char* input){
+
+    for(int cur_char = 0; cur_char < strlen(input); cur_char++){ // 
+        if(isalpha(input[cur_char]) != SUCCESS){ // If it finds an alphabetic character:
+            input[cur_char] = tolower(input[cur_char]); // Make that letter lowercase.
+        }else{
+            input[cur_char] = ' '; // otherwise, clear it from the buffer.
+        }
+    }
+
+}
+/**
+ * @brief Tokenizes a line and returns a list of the words in the line. Assumes string_sanitize was executed beforehand.
+ * 
+ * @param input 
+ * @return char** 
+ */
+char** string_tokenize(char* input){
+    char* token;
+    char** tokens = malloc(LINE_SIZE * sizeof(char*)); 
+    // Create a list of words.
+
+    int cur_word = 0;
+    token = strtok(input, TOKEN_DELIMS); // Seperate by spaces.
+
+    do{
+        tokens[cur_word] = token; // place token into buffer.
+        token = strtok(NULL, TOKEN_DELIMS); // get next token.
+        cur_word++; // next word
+    }while(token != NULL);
+    tokens[cur_word] = NULL; 
+
+    return tokens;
+}
 
 /**
  * @brief Does not need to work with different process/thread types. Given the number of tasks, goes round-robin parsing 
@@ -38,25 +79,29 @@ void parser(int task_num, int** parse_buffers){
     // create a parser that parses through a file and takes a certain amount of words in.
     char line_buff[LINE_SIZE]; // Create a general input buffer.
     
-    char* word_list; // Maybe allocate this if we sending it.
+    char** word_list; // Maybe allocate this if we sending it.
     char* temp_list;
 
     int cur_pipe = 0;
     int cur_word = 0;
     int cur_char = 0;
+
     // TODO: Allocate a list of file buffers for the piping.
-    FILE** file_buffers = calloc(sizeof(FILE*), task_num); // Create enough buffers to satisfy the user designation.
+    FILE** file_buffers = malloc(sizeof(FILE*) * task_num); // Create enough buffers to satisfy the user designation.
 
     // Initialize all of the pipes and create file buffers.
-    for (cur_pipe = 0; cur_pipe < task_num; cur_pipe++)
-    {
+    /*
+    for (cur_pipe = 0; cur_pipe < task_num; cur_pipe++) {
+
         // Open writing permissions to write to the file buffers.
         file_buffers[cur_pipe] = fdopen(parse_buffers[cur_pipe][PIPE_OUT], "w"); 
-        if(!file_buffers[cur_pipe]){
-            fprintf(stderr, "Failed to open pipe # %d: [Errno = %d, errstr = %s]", cur_pipe, errno, strerror(errno));
+        if(file_buffers[cur_pipe] == NULL){
+            fprintf(stderr, "Failed to open pipe # %d: [Errno = %d, errstr = %s]\n", cur_pipe, errno, strerror(errno));
             exit(EXIT_FAILURE);
         }
     }
+    */
+
     // ! Turn parsed lines into tokenized input.
     // TODO: Make this a split line function.
     // TODO: Make temp_list into a temp_word
@@ -64,35 +109,15 @@ void parser(int task_num, int** parse_buffers){
     // Fill the line buffers with input stream data
     // get line data from stdin using fgets til its null.
     while (READLINE_STDIN(line_buff, LINE_SIZE)) {
+        
         // * Convert the characters in the buffer into lowercase for case insensitive, and clear any non alphabetic characters.
-
-        for(cur_char = 0; cur_char < strlen(line_buff); cur_char++){ // 
-            if(isalpha(line_buff[cur_char]) != SUCCESS){ // If it finds an alphabetic character:
-                line_buff[cur_char] = tolower(line_buff[cur_char]); // Make that letter lowercase.
-            }else{
-                line_buff[cur_char] = ' '; // otherwise, clear it from the buffer.
-            }
-        }
-
+        
+        string_sanitize(line_buff);
         // ? Afterwards, we can tokenize the input by spaces.
 
-        temp_list = strtok(line_buff, TOKEN_DELIMS); // Start the tokenization by a space delimiter.
-        
-        if(temp_list != NULL){
-            // Write a newline over into our word and then write that into our temporary buffer. 
-            sprintf(word_list, "%s\n", temp_list); 
-        }
-        // Transfer the string without the null terminator to our word_list. 
-        // ? Then send our tokenized words round-robin style to the file buffers.
-        for (cur_word = 0; temp_list != NULL; cur_word++)
-        {
-            fputs(word_list, file_buffers[cur_word]); // Place the current word that we've recieved into the file buffer.
-            temp_list = strtok(NULL, TOKEN_DELIMS); // Read the next token in.
-            if(temp_list != NULL){
-                sprintf(word_list, "%s\n", temp_list); // Write a newline over into our word and then write that 
-            }
-        }
-        // TODO: Finish the rest of the parser.
+        TOKENIZE_INTO(word_list, line_buff);
+
+        PRINT_STR_LIST(word_list);
 
     }
     
@@ -123,6 +148,7 @@ void process_merging(){
 void thread_merging(){
 
 }
+
 /**
  * @brief Read the input from the thread 
  * 
@@ -140,8 +166,8 @@ int main(int argc, char const *argv[])
      */
     int task_num = atoi(argv[1]); // get the number from input.
     
-    printf("Number of tasks: %d\n", task_num);
-   
+    //printf("Number of tasks: %d\n", task_num);
+    
     int** input_fds; // list of the input file descriptors we'll be using for pipes.
     int** sorting_fds; // This is going to be for how we handle the pipe I/O
 
@@ -155,10 +181,12 @@ int main(int argc, char const *argv[])
     for (int i = 0; i < task_num; i++)
     {
         input_fds[i] = calloc(sizeof(int), PIPE_IO_SIZE); // Create enough space for the in/out file descriptors created by pipe.
-        sorting_fds[i] = calloc(sizeof(int), PIPE_IO_SIZE); // ^^
+        sorting_fds[i] = calloc(sizeof(int), PIPE_IO_SIZE); // ^^ 
     }
     
     // Parse input
+
+    parser(task_num, input_fds);
 
     // Set up piping to the sort process.
 
