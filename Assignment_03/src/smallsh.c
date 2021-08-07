@@ -128,6 +128,7 @@ char* smsh_read_line(){
 
 char** smsh_split_line(char* input_line){
     // Parse the whole line based off of " ", \n
+    
     char* token;
     char** tokens = malloc(ARGMAX * sizeof(char*)); // make a max size buffer of strings.
     int curr_word = 0; // Tracker.

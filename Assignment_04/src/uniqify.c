@@ -11,7 +11,7 @@
 #include <stdbool.h> 
 #include <signal.h>
 #include <ctype.h>
-#include "uniqify.h"
+#include "../include/uniqify.h"
 
 
 #define LINE_SIZE 100 // Hopefully a line isn't longer than 100 characters.
@@ -22,18 +22,66 @@
 #define SUCCESS 0
 #define FAILURE 1
 #define TOKEN_DELIMS " "
-
+#define PIPE_FAILURE -1
+typedef int** fd_list_t;
+typedef int* pid_list_t;
 // char* g_input_line;
 char g_prev_word[LINE_SIZE] = ""; // fite me.
 int g_word_count = 1; // For counting the shit through semaphores using IPC.
 
-typedef int** fd_list_t;
 
+/**
+ * @brief Initializes all of the pipe lists and sets the sorting lists to output to the sort process. 
+ * 
+ * @param task_num 
+ * @param input_fds 
+ * @param sorting_fds 
+ */
+void sort_pipe_init(Uniq_proc_t* process){
+    // TODO: Create the pipes to the sort process. Done.
+    
+    pid_t spawn_pid;
+    // For however many tasks we need to spawn, create a new pipe that reads from stdin and writes to stdout
+    for(int cur_pipe = 0; cur_pipe < process->task_num; cur_pipe++){
 
-void sort_pipe_init(int task_num, fd_list_t input_fds, fd_list_t sorting_fds){
-    // TODO: Create the pipes to the sort process.
+        if(pipe(process->parse_pipes[cur_pipe]) == PIPE_FAILURE || pipe(process->sort_pipes[cur_pipe]) == PIPE_FAILURE){
+            fprintf(stderr, "Pipe #%d failed to open: [Errno = %d, errstr = %s]\n", cur_pipe,errno, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        switch(spawn_pid = fork()){
+            case -1: // Error in the fork.
+                fprintf(stderr, "Fork failed to open, case -1: [Errno = %d, errstr = %s]\n",errno, strerror(errno));
+                exit(EXIT_FAILURE);
+            case 0: // Child spawned
+                /*
+                 This case should close the writing from the input parsing, since we only need to read data from stdin. And we should close the read for the sorting, since we're only going to be writing the data out to 
+                */
+                dup2(process->parse_pipes[cur_pipe][STDIN_FILENO], STDIN_FILENO);
+                dup2(process->sort_pipes[cur_pipe][STDOUT_FILENO], STDOUT_FILENO);
+                // Initialize the pipes, then close the parser for later use.
+                close(process->parse_pipes[cur_pipe][STDIN_FILENO]);
+                close(process->parse_pipes[cur_pipe][STDOUT_FILENO]);
+                // Close the sort pipes and then afterwards run the exec for sort.
+                close(process->sort_pipes[cur_pipe][STDIN_FILENO]);
+                close(process->sort_pipes[cur_pipe][STDOUT_FILENO]);
+                execlp("sort", "sort", (char*) NULL);
+                fprintf(stderr, "Fork failed to open in child (case 0): [Errno = %d, errstr = %s]\n",errno, strerror(errno));
+                exit(EXIT_FAILURE);
+                break;
+            default:
+                close(process->parse_pipes[cur_pipe][STDIN_FILENO]);
+                close(process->parse_pipes[cur_pipe][STDOUT_FILENO]);
+                process->pid_list[cur_pipe] = spawn_pid;
+                break;
+
+        }
+    }
 }
-
+/**
+ * @brief Takes a string and removes non alphabetic characters from it (Doesn't work on unicode. I think?)
+ * 
+ * @param input 
+ */
 void string_sanitize(char* input){
 
     for(int cur_char = 0; cur_char < strlen(input); cur_char++){ // 
@@ -43,7 +91,6 @@ void string_sanitize(char* input){
             input[cur_char] = ' '; // otherwise, clear it from the buffer.
         }
     }
-
 }
 /**
  * @brief Tokenizes a line and returns a list of the words in the line. Assumes string_sanitize was executed beforehand.
@@ -69,45 +116,49 @@ char** string_tokenize(char* input){
     return tokens;
 }
 
+void pipe_send_data(Uniq_proc_t* process, char** word_list, FILE** stream_buffers, int counter){
+    int i = 0;
+    while(*word_list){
+        fputs(word_list[count], stream_buffers[count])
+    }
+}
+
 /**
  * @brief Does not need to work with different process/thread types. Given the number of tasks, goes round-robin parsing 
  * until the input has been fully read in.
  * 
  */
-void parser(int task_num, int** parse_buffers){
+void parser(Uniq_proc_t* process){
     // TODO: Split this up into helper methods to do everything
     // create a parser that parses through a file and takes a certain amount of words in.
     char line_buff[LINE_SIZE]; // Create a general input buffer.
-    
     char** word_list; // Maybe allocate this if we sending it.
-    char* temp_list;
-
     int cur_pipe = 0;
-    int cur_word = 0;
-    int cur_char = 0;
 
     // TODO: Allocate a list of file buffers for the piping.
-    FILE** file_buffers = malloc(sizeof(FILE*) * task_num); // Create enough buffers to satisfy the user designation.
+    FILE** file_buffers = malloc(sizeof(FILE*) * process->task_num); // Create enough buffers to satisfy the user designation.
 
     // Initialize all of the pipes and create file buffers.
-    /*
-    for (cur_pipe = 0; cur_pipe < task_num; cur_pipe++) {
+
+    for (cur_pipe = 0; cur_pipe < process->task_num; cur_pipe++) {
 
         // Open writing permissions to write to the file buffers.
-        file_buffers[cur_pipe] = fdopen(parse_buffers[cur_pipe][PIPE_OUT], "w"); 
+        file_buffers[cur_pipe] = fdopen(process->parse_pipes[cur_pipe][PIPE_OUT], "w"); 
         if(file_buffers[cur_pipe] == NULL){
             fprintf(stderr, "Failed to open pipe # %d: [Errno = %d, errstr = %s]\n", cur_pipe, errno, strerror(errno));
             exit(EXIT_FAILURE);
         }
     }
-    */
 
+
+    
     // ! Turn parsed lines into tokenized input.
     // TODO: Make this a split line function.
     // TODO: Make temp_list into a temp_word
     // TODO: Make word_list either an actual list of words, or word_buffer.
     // Fill the line buffers with input stream data
     // get line data from stdin using fgets til its null.
+    int word_count = 0;
     while (READLINE_STDIN(line_buff, LINE_SIZE)) {
         
         // * Convert the characters in the buffer into lowercase for case insensitive, and clear any non alphabetic characters.
@@ -115,9 +166,12 @@ void parser(int task_num, int** parse_buffers){
         string_sanitize(line_buff);
         // ? Afterwards, we can tokenize the input by spaces.
 
-        TOKENIZE_INTO(word_list, line_buff);
+        TOKENIZE_INTO(word_list, line_buff); // Macro to tokenize a line into a word list.
+        // dest <- src btw ^
 
-        PRINT_STR_LIST(word_list);
+        PRINT_STR_LIST(word_list); // Macro to print the words in a string array to console.
+
+        //pipe_send_data()
 
     }
     
@@ -165,9 +219,10 @@ int main(int argc, char const *argv[])
      * 
      */
     int task_num = atoi(argv[1]); // get the number from input.
-    
+
     //printf("Number of tasks: %d\n", task_num);
-    
+    Uniq_proc_t* process = malloc(sizeof(Uniq_proc_t));
+
     int** input_fds; // list of the input file descriptors we'll be using for pipes.
     int** sorting_fds; // This is going to be for how we handle the pipe I/O
 
@@ -186,7 +241,7 @@ int main(int argc, char const *argv[])
     
     // Parse input
 
-    parser(task_num, input_fds);
+    parser(process);
 
     // Set up piping to the sort process.
 
