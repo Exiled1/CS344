@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 2
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>  //Header file for sleep(). man 3 sleep for details.
@@ -56,6 +56,7 @@ void sort_pipe_init(Uniq_proc_t* process){
                 /*
                  This case should close the writing from the input parsing, since we only need to read data from stdin. And we should close the read for the sorting, since we're only going to be writing the data out to 
                 */
+               
                 dup2(process->parse_pipes[cur_pipe][STDIN_FILENO], STDIN_FILENO);
                 dup2(process->sort_pipes[cur_pipe][STDOUT_FILENO], STDOUT_FILENO);
                 // Initialize the pipes, then close the parser for later use.
@@ -116,12 +117,7 @@ char** string_tokenize(char* input){
     return tokens;
 }
 
-void pipe_send_data(Uniq_proc_t* process, char** word_list, FILE** stream_buffers, int counter){
-    int i = 0;
-    while(*word_list){
-        fputs(word_list[count], stream_buffers[count])
-    }
-}
+
 
 /**
  * @brief Does not need to work with different process/thread types. Given the number of tasks, goes round-robin parsing 
@@ -136,16 +132,16 @@ void parser(Uniq_proc_t* process){
     int cur_pipe = 0;
 
     // TODO: Allocate a list of file buffers for the piping.
-    FILE** file_buffers = malloc(sizeof(FILE*) * process->task_num); // Create enough buffers to satisfy the user designation.
+    FILE** stream_buffers = malloc(sizeof(FILE*) * process->task_num); // Create enough buffers to satisfy the user designation.
 
     // Initialize all of the pipes and create file buffers.
 
     for (cur_pipe = 0; cur_pipe < process->task_num; cur_pipe++) {
 
         // Open writing permissions to write to the file buffers.
-        file_buffers[cur_pipe] = fdopen(process->parse_pipes[cur_pipe][PIPE_OUT], "w"); 
-        if(file_buffers[cur_pipe] == NULL){
-            fprintf(stderr, "Failed to open pipe # %d: [Errno = %d, errstr = %s]\n", cur_pipe, errno, strerror(errno));
+        stream_buffers[cur_pipe] = fdopen(process->parse_pipes[cur_pipe][PIPE_OUT], "w"); 
+        if(stream_buffers[cur_pipe] == NULL){
+            fprintf(stderr, "Failed to open stream # %d: [Errno = %d, errstr = %s]\n", cur_pipe, errno, strerror(errno));
             exit(EXIT_FAILURE);
         }
     }
@@ -169,12 +165,26 @@ void parser(Uniq_proc_t* process){
         TOKENIZE_INTO(word_list, line_buff); // Macro to tokenize a line into a word list.
         // dest <- src btw ^
 
-        PRINT_STR_LIST(word_list); // Macro to print the words in a string array to console.
+        //PRINT_STR_LIST(word_list); // Macro to print the words in a string array to console.
+ 
+        while(*word_list){ // while we have a word stream 
+            if(word_count == process->task_num - 1){
+                word_count = 0;
+            }
+            printf("%s\n", *word_list);
+            
+            fputs(*word_list++, stream_buffers[word_count]);
 
-        //pipe_send_data()
-
-    }
     
+
+            word_count++;
+        }
+    }
+    // TODO: Out of the while loops, data has been buffered, time to close the stream!!
+
+    for(int i = 0; i < process->task_num; i++){
+        fclose(stream_buffers[i]);
+    }
     
 
 }
@@ -223,22 +233,25 @@ int main(int argc, char const *argv[])
     //printf("Number of tasks: %d\n", task_num);
     Uniq_proc_t* process = malloc(sizeof(Uniq_proc_t));
 
-    int** input_fds; // list of the input file descriptors we'll be using for pipes.
-    int** sorting_fds; // This is going to be for how we handle the pipe I/O
+    //int** input_fds; // list of the input file descriptors we'll be using for pipes.
+    //int** sorting_fds; // This is going to be for how we handle the pipe I/O
 
     pid_t spawnpid; // Get a spawning id for the process sort/merge.
 
     // Dynamically created list of the number of tasks we're going to have.
-    input_fds = calloc(sizeof(int*), task_num); 
-    sorting_fds = calloc(sizeof(int*), task_num); 
+    process->parse_pipes = calloc(sizeof(int*), task_num); 
+    process->sort_pipes = calloc(sizeof(int*), task_num); 
     
     // Loop for initializing the process pipes and creating enough space for the pipe() in/out space.
     for (int i = 0; i < task_num; i++)
     {
-        input_fds[i] = calloc(sizeof(int), PIPE_IO_SIZE); // Create enough space for the in/out file descriptors created by pipe.
-        sorting_fds[i] = calloc(sizeof(int), PIPE_IO_SIZE); // ^^ 
+        process->parse_pipes[i] = calloc(sizeof(int), PIPE_IO_SIZE); // Create enough space for the in/out file descriptors created by pipe.
+        process->sort_pipes[i] = calloc(sizeof(int), PIPE_IO_SIZE); // ^^ 
     }
     
+    // FUCKING INITALIZE THE PIPES, I'VE TOLD THIS TO EVERYONE AND DIDNT FOLLOW MY OWN ADVICE.
+
+    sort_pipe_init(process);
     // Parse input
 
     parser(process);

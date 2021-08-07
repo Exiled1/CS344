@@ -13,7 +13,7 @@ VPATH =./src/
 DIRECTORIES = include
 
 # I made this ftmacros variable to expand and include feature test macros automatically.
-FTMACROS = 
+FTMACROS = _POSIX_SOURCE _GNU_SOURCE _POSIX_C_SOURCE
 
 # --------------------------------------- Below is config stuff ------------------------------------------------
 
