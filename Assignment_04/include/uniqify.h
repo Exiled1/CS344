@@ -12,9 +12,13 @@ typedef struct uniq_proc{
     pid_list_t pid_list;
     int task_num;
     pthread_cond_t conditions[2];
-
 }Uniq_proc_t;
 
+typedef struct word_track{
+    char word[100];
+    int occurrences;
+}word_track_t;
+void close_pipes_array(int **pipe_array, int end);
 char** string_tokenize(char* input);
 void sort_pipe_init(Uniq_proc_t* process);
 void string_sanitize(char* input);
