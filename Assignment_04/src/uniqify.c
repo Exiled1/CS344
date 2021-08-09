@@ -27,6 +27,11 @@
 #define PIPE_COND 0
 #define PARSE_COND 1
 
+typedef struct word_track{
+    char word[LINE_SIZE];
+    int occurrences;
+}word_track_t;
+
 typedef int** fd_list_t;
 typedef int* pid_list_t;
 // char* g_input_line;
@@ -218,14 +223,14 @@ void parser(Uniq_proc_t* process){
 int lexic_min_at(int buffer_num, char** buffer_heaps){
     // Find the index of the smallest lexicographical word in a list, this will help with a merge.
     int lmin_index = -2; // -1 is gonna be an error.
-    int counter;
+   
     for (int i = 0; i < buffer_num; i++) {
         if(buffer_heaps[i] != NULL){
             lmin_index = i;
             break;
         }
     }
-    
+
     if(lmin_index == -2){
         return -2;
     }
@@ -251,6 +256,8 @@ void silencer(Uniq_proc_t* process){
     FILE** sort_data_buf = malloc(sizeof(FILE*) * process->task_num); // Create enough sort buffers to fit all of the tasks for merge later.
     char** word_arr = malloc(sizeof(char*) * process->task_num); // create a temporary buffer for the K buffers.
     int buffers_read = 0;
+    int lexi_small_index = -2;
+    word_track_t word_tracker; // If need to let out of here, malloc :shrug:
     // open the sort buffers and read from them
     #ifdef THREAD
     pthread_mutex_lock(&g_lock);
@@ -265,11 +272,54 @@ void silencer(Uniq_proc_t* process){
             word_arr[cur_pipe] = NULL; 
             printf("End of stream\n");
         }
+        #ifdef DEBUG
         printf("%d word: %s\n", cur_pipe, word_arr[cur_pipe]);
+        #endif
     }
+
+    lexi_small_index = lexic_min_at(process->task_num, word_arr); // Finds index of lexic lowest word.
+    
+    if(lexi_small_index == -2){
+        fprintf(stderr, "None of the buffers had any data.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // TODO: Do a thing for word count inside of a struct.
+    strncpy(word_tracker.word, word_arr[lexi_small_index], LINE_SIZE); // Place the word into the word tracker.
+    word_tracker.occurrences = 1; // First word encountered.
+
+    // while we're getting data from all the buffers til the end of the buffers:
+    while(buffers_read < process->task_num){
+        if(fgets(word_arr[lexi_small_index], LINE_SIZE, sort_data_buf[lexi_small_index]) == NULL){ 
+            word_arr[lexi_small_index] = NULL; // Idek if I need to null it... Probably not.
+            buffers_read++;
+        }
+        lexi_small_index = lexic_min_at(process->task_num, word_arr);
+        if(lexi_small_index == -2){
+            // Word arrays are all empty.
+            break;
+        }
+        // Compare current word and the next searched word, if it's the same word increment the count.
+        if(strcmp(word_tracker.word, word_arr[lexi_small_index]) == 0){
+            #ifdef DEBUG
+            printf("First word: %s\nSecond word: %s", word_tracker.word, word_arr[lexi_small_index]);
+            #endif
+            word_tracker.occurrences++;
+        }else{
+            // If the word is different, print the word and acquire the new word from the min heaps.
+            printf("%d - %s", word_tracker.occurrences, word_tracker.word);
+            strncpy(word_tracker.word, word_arr[lexi_small_index], LINE_SIZE); // Place the word into the word tracker.
+            word_tracker.occurrences = 1;
+        }
+    }
+    // print final word
+    printf("%d - %s", word_tracker.occurrences, word_tracker.word);
+
     #ifdef THREAD
     pthread_mutex_unlock(&g_lock);
-    #endif  
+    #endif
+
+
     
 
 
@@ -286,6 +336,7 @@ void* thread_sort_caller(Uniq_proc_t* process){
     sort_pipe_init(process);
     return NULL;
 }
+
 void* thread_parse_caller(Uniq_proc_t* process){
     parser(process);
     return NULL;
@@ -371,7 +422,7 @@ int main(int argc, char const *argv[])
     {
         pthread_join(threads[i], NULL);
     }
-    #endif THREAD
+    #endif
 
     //pthread_t tiddy;
     //pthread_create(&tiddy, NULL, thread_silence_caller, process);
