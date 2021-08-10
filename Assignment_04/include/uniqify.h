@@ -15,9 +15,10 @@ typedef struct uniq_proc{
 }Uniq_proc_t;
 
 typedef struct word_track{
-    char word[100];
+    char word[400];
     int occurrences;
 }word_track_t;
+
 void close_pipes_array(int **pipe_array, int end);
 char** string_tokenize(char* input);
 void sort_pipe_init(Uniq_proc_t* process);

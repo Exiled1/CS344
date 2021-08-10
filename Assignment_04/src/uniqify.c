@@ -14,7 +14,7 @@
 #include <ctype.h>
 #include "../include/uniqify.h"
 
-#define LINE_SIZE 1000 // Hopefully a line isn't longer than 100 characters.
+#define LINE_SIZE 400 // Hopefully a line isn't longer than 100 characters.
 #define MAX_BUFFSIZE 2048
 #define PIPE_IO_SIZE 2
 #define PIPE_OUT 1 // Stdout
@@ -369,7 +369,9 @@ void silencer(Uniq_proc_t *process)
         {
             // When we've read the whole stream, end the thing with a null.
             word_arr[cur_pipe] = NULL;
+            #ifdef DEBUG
             printf("End of stream\n");
+            #endif
         }
 #ifdef DEBUG
         printf("%d word: %s\n", cur_pipe, word_arr[cur_pipe]);
