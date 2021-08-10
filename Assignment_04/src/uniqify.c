@@ -14,7 +14,7 @@
 #include <ctype.h>
 #include "../include/uniqify.h"
 
-#define LINE_SIZE 100 // Hopefully a line isn't longer than 100 characters.
+#define LINE_SIZE 1000 // Hopefully a line isn't longer than 100 characters.
 #define MAX_BUFFSIZE 2048
 #define PIPE_IO_SIZE 2
 #define PIPE_OUT 1 // Stdout
@@ -32,17 +32,87 @@ typedef int *pid_list_t;
 
 pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 
-void close_pipes_array(int **pipe_array, int end)
+
+/**
+ * @brief Read the input from the thread 
+ * 
+ * @return void* 
+ */
+
+int main(int argc, char const *argv[])
 {
-    int i, j;
-    for (i = 0; i <= end; i++)
+
+    /**
+     * @brief So it seems that this is gonna be more interesting than I thought. Essentially 
+     * it seems that we're going to have to make N pipes that the user gives us from the CMD line. 
+     * 
+     */
+    int task_num = atoi(argv[1]); // get the number from input.
+
+    //clock_t start, end; // For timing.
+    
+    Uniq_proc_t *process = malloc(sizeof(Uniq_proc_t));
+    
+    process->task_num = task_num;
+
+    process->parse_pipes = malloc(sizeof(int *) * task_num);
+    process->sort_pipes = malloc(sizeof(int *) * task_num);
+    process->pid_list = malloc(sizeof(pid_t) * task_num);
+
+    // Loop for initializing the process pipes and creating enough space for the pipe() in/out space.
+    for (int i = 0; i < process->task_num; i++)
     {
-        for (j = 0; j < 2; j++)
-        {
-            /* Using close_pipes() here will throw an error because some pipes have already been closed */
-            close(pipe_array[i][j]);
-        }
+        process->parse_pipes[i] = malloc(sizeof(int) * PIPE_IO_SIZE); // Create enough space for the in/out file descriptors created by pipe.
+        process->sort_pipes[i] = malloc(sizeof(int) * PIPE_IO_SIZE);  // ^^
     }
+
+    process->parse_pipes[process->task_num - 1][1] = PIPE_FAILURE;
+    process->sort_pipes[process->task_num - 1][1] = PIPE_FAILURE;
+
+// FUCKING INITALIZE THE PIPES, I'VE TOLD THIS TO EVERYONE AND DIDNT FOLLOW MY OWN ADVICE.
+#ifdef PROCESS
+    //start = clock();
+    
+    sort_pipe_init(process);
+    // Parse input
+    parser(process);
+    // Set up piping to the sort process.
+    silencer(process);
+    //end = clock();
+#endif
+
+    // (void*(*)(void*))
+    // void* = return type
+    // (*) = saying its a function
+    // (void*) = casting the parameter types.
+
+#ifdef THREAD
+
+    pthread_t threads[3];
+    pthread_create(&threads[0], NULL, (void* (*)(void *))thread_sort_caller, process);
+    
+    pthread_create(&threads[1], NULL, (void* (*)(void *))thread_parse_caller, process);
+    
+    pthread_create(&threads[2], NULL, (void* (*)(void *))thread_silence_caller, process);
+    
+
+    for (size_t i = 0; i < 3; i++)
+    {
+        pthread_join(threads[i], NULL);
+    }
+
+#endif
+
+    // Close the input/sort pipes
+    // Free all the memory that you allocated
+    for (int i = 0; i < task_num; i++)
+    {
+       wait(NULL);
+    }
+    //end = clock();
+    //double time_taken = (double)(end - start) / (double)(CLOCKS_PER_SEC);
+    //printf("Program took: %f seconds", time_taken);
+    return 0;
 }
 
 /**
@@ -86,11 +156,6 @@ void sort_pipe_init(Uniq_proc_t *process)
             dup2(process->parse_pipes[cur_pipe][STDIN_FILENO], STDIN_FILENO);
             dup2(process->sort_pipes[cur_pipe][STDOUT_FILENO], STDOUT_FILENO);
             // Initialize the pipes, then close the parser for later use.
-            //close(process->parse_pipes[cur_pipe][STDIN_FILENO]);
-            //close(process->parse_pipes[cur_pipe][STDOUT_FILENO]);
-            // Close the sort pipes and then afterwards run the exec for sort.
-            //close(process->sort_pipes[cur_pipe][STDIN_FILENO]);
-            //close(process->sort_pipes[cur_pipe][STDOUT_FILENO]);
             close_pipes_array(process->parse_pipes, cur_pipe);
             close_pipes_array(process->sort_pipes, cur_pipe);
 
@@ -388,83 +453,15 @@ void *thread_silence_caller(Uniq_proc_t *process)
     return NULL;
 }
 
-/**
- * @brief Read the input from the thread 
- * 
- * @return void* 
- */
-
-int main(int argc, char const *argv[])
+void close_pipes_array(int **pipe_array, int end)
 {
-
-    /**
-     * @brief So it seems that this is gonna be more interesting than I thought. Essentially 
-     * it seems that we're going to have to make N pipes that the user gives us from the CMD line. 
-     * 
-     */
-    int task_num = atoi(argv[1]); // get the number from input.
-
-    //clock_t start, end; // For timing.
-    
-    Uniq_proc_t *process = malloc(sizeof(Uniq_proc_t));
-    
-    process->task_num = task_num;
-
-    process->parse_pipes = malloc(sizeof(int *) * task_num);
-    process->sort_pipes = malloc(sizeof(int *) * task_num);
-    process->pid_list = malloc(sizeof(pid_t) * task_num);
-
-    // Loop for initializing the process pipes and creating enough space for the pipe() in/out space.
-    for (int i = 0; i < process->task_num; i++)
+    int i, j;
+    for (i = 0; i <= end; i++)
     {
-        process->parse_pipes[i] = malloc(sizeof(int) * PIPE_IO_SIZE); // Create enough space for the in/out file descriptors created by pipe.
-        process->sort_pipes[i] = malloc(sizeof(int) * PIPE_IO_SIZE);  // ^^
+        for (j = 0; j < 2; j++)
+        {
+            /* Using close_pipes() here will throw an error because some pipes have already been closed */
+            close(pipe_array[i][j]);
+        }
     }
-
-    process->parse_pipes[process->task_num - 1][1] = PIPE_FAILURE;
-    process->sort_pipes[process->task_num - 1][1] = PIPE_FAILURE;
-
-// FUCKING INITALIZE THE PIPES, I'VE TOLD THIS TO EVERYONE AND DIDNT FOLLOW MY OWN ADVICE.
-#ifdef PROCESS
-    //start = clock();
-    
-    sort_pipe_init(process);
-    // Parse input
-    parser(process);
-    // Set up piping to the sort process.
-    silencer(process);
-    //end = clock();
-#endif
-
-    // (void*(*)(void*))
-    // void* = return type
-    // (*) = saying its a function
-    // (void*) = casting the parameter types.
-
-#ifdef THREAD
-    //start = clock();
-
-    pthread_t threads[3];
-    pthread_create(&threads[0], NULL, (void *(*)(void *))thread_sort_caller, process);
-    pthread_create(&threads[1], NULL, (void *(*)(void *))thread_parse_caller, process);
-    pthread_create(&threads[2], NULL, (void *(*)(void *))thread_silence_caller, process);
-
-    for (size_t i = 0; i < 3; i++)
-    {
-        pthread_join(threads[i], NULL);
-    }
-    //end = clock();
-
-#endif
-
-    // Close the input/sort pipes
-    // Free all the memory that you allocated
-    for (int i = 0; i < task_num; i++)
-    {
-       wait(NULL);
-    }
-    //end = clock();
-    //double time_taken = (double)(end - start) / (double)(CLOCKS_PER_SEC);
-    //printf("Program took: %f seconds", time_taken);
-    return 0;
 }

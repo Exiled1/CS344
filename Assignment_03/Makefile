@@ -1,6 +1,6 @@
 
 # THIS IS WHERE YOU SPECIFY THE C SOURCE FILES.
-SOURCES = smallsh2.c
+SOURCES = smallsh.c strReplace.c
 
 # Target is the final executable name.
 

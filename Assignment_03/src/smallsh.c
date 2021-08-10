@@ -8,7 +8,7 @@
 #include <stdbool.h> 
 #include <signal.h>  
 #include "smallsh.h"
-#include "strReplace.h"
+#include "../include/strReplace.h"
 
 #define SM_PROMPT_CHAR ": "
 #define SM_DELIMS " \n"
@@ -238,6 +238,11 @@ void smsh_input_redir(char** commands, bool background){
             // ? Go to the next argument after finding this, hopefully its not null.
             curr_arg++;
             new_fd = open(commands[curr_arg], READ_ACCESS); // Read the data from the file as a file desc.
+            if(new_fd == -1){
+                fprintf(stderr, "File Read Error : [Errno = %d, errstr = %s]\n", errno, strerror(errno));
+                exit(EXIT_FAILURE);
+                return;
+            }
             commands[curr_arg] = NULL; 
             dup2(new_fd, 0); // Makes the file descriptor turn into standard input.
 
@@ -248,6 +253,11 @@ void smsh_input_redir(char** commands, bool background){
             // TODO Make a new file, send our output to that, so make that stdout, which is dup2(__, 1);
             curr_arg++;
             new_fd = open(commands[curr_arg], READ_WR_TRUNC, OWN_RW_ACC); 
+            if(new_fd == -1){
+                fprintf(stderr, "File Write Error : [Errno = %d, errstr = %s]\n", errno, strerror(errno));
+                exit(EXIT_FAILURE);
+                return;
+            }
             commands[curr_arg] = NULL; // ! Clear these so we don't send these to the commands.
             dup2(new_fd, 1); // ? Make our file into stdout.
         }
@@ -258,9 +268,19 @@ void smsh_input_redir(char** commands, bool background){
         //printf("Background on.");
         if (in_out_flag == INPUT_FLAG){ // < is true.
             new_fd = open(SILENT_OUT, READ_ACCESS); // Open to SILENCE MORTALS.
+            if(new_fd == -1){
+                fprintf(stderr, "File Read Error : [Errno = %d, errstr = %s]\n", errno, strerror(errno));
+                exit(EXIT_FAILURE);
+                return;
+            }
             dup2(new_fd, 0); // Makes the file descriptor turn into standard input.
         }else if(in_out_flag == OUTPUT_FLAG){
             new_fd = open(SILENT_OUT, READ_WR_TRUNC, OWN_RW_ACC); // WRITE TO NOTHING YOU FOOL. 
+            if(new_fd == -1){
+                fprintf(stderr, "File Write Error : [Errno = %d, errstr = %s]\n", errno, strerror(errno));
+                exit(EXIT_FAILURE);
+                return;
+            }
             dup2(new_fd, 1); // ? Reroute our old thing into stdout.
         }
     }

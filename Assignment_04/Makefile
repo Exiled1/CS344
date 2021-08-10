@@ -13,7 +13,7 @@ VPATH =./src/
 DIRECTORIES = include
 
 # I made this ftmacros variable to expand and include feature test macros automatically.
-FTMACROS = _POSIX_SOURCE _GNU_SOURCE _POSIX_C_SOURCE THREAD
+FTMACROS = _POSIX_SOURCE _GNU_SOURCE _POSIX_C_SOURCE PROCESS
 
 # --------------------------------------- Below is config stuff ------------------------------------------------
 
@@ -36,7 +36,7 @@ endif
 
 
 CC=gcc
-CFLAGS= -std=c11 -g3 -pthread -Wall -O0 $(HDIR) $(EXP)
+CFLAGS= -std=c11 -g3 -pthread -Wall -Werror -O0 $(HDIR) $(EXP)
 
 # This default goal is to make your main target, it'll go and create an executable file in the specified VPATH 
 .DEFAULT_GOAL := $(TARGET)
