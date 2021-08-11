@@ -17,9 +17,9 @@ REPORT_PACKET_END = "<Report Completed>"
 def server_connect(HOST, PORT, data: bytes, n: list):
     with sock(socket.AF_INET, socket.SOCK_STREAM) as stream:
         stream.connect((HOST, PORT))
-        stream.sendall(f"Client Request : {data}")
+        stream.sendall(f"Client Request : {data}") # send this data to the user.
         data = stream.recv(1024)
-        n.append = data.find("Request") # 
+        n.append = data.find("Request") # Find 
 
 
 def perfect_nums(a, b):
