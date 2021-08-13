@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -69,15 +68,16 @@ int main(int argc, char const *argv[])
     process->parse_pipes[process->task_num - 1][1] = PIPE_FAILURE;
     process->sort_pipes[process->task_num - 1][1] = PIPE_FAILURE;
 
-// INITALIZE THE PIPES, I'VE TOLD THIS TO EVERYONE AND DIDNT FOLLOW MY OWN ADVICE.
+// FUCKING INITALIZE THE PIPES, I'VE TOLD THIS TO EVERYONE AND DIDNT FOLLOW MY OWN ADVICE.
 #ifdef PROCESS
+    //start = clock();
     
     sort_pipe_init(process);
     // Parse input
     parser(process);
-    // ^ Set up piping to the sort process.
+    // Set up piping to the sort process.
     fork_silencer(process);
-    // Set up the silencer and start merging & outputting.
+    //end = clock();
 #endif
 
     // (void*(*)(void*))
@@ -114,28 +114,6 @@ int main(int argc, char const *argv[])
     return 0;
 }
 
-void fork_silencer(Uniq_proc_t* process){
-
-    pid_t spawnpid;
-    spawnpid = fork();
-
-    switch (spawnpid) {
-    case -1:
-        fprintf(stderr, "Fork failed to open in fork_silencer: [Errno = %d, errstr = %s]\n", errno, strerror(errno));
-        exit(EXIT_FAILURE);
-        break;
-    
-    case 0:
-        silencer(process);
-        break;
-
-    default:
-        wait(&spawnpid);
-        break;
-    }
-}
-
-
 /**
  * @brief Initializes all of the pipe lists and sets the sorting lists to output to the sort process. 
  * 
@@ -164,15 +142,15 @@ void sort_pipe_init(Uniq_proc_t *process)
             exit(EXIT_FAILURE);
         }
 
-        switch (spawn_pid = fork()) // For the sort processes.
+        switch (spawn_pid = fork())
         {
         case -1: // Error in the fork.
             fprintf(stderr, "Fork failed to open, (case -1): [Errno = %d, errstr = %s]\n", errno, strerror(errno));
             exit(EXIT_FAILURE);
         case 0: // Child spawned
             /*
-                This case should close the writing from the input parsing, since we only need to read data from stdin. And we should close the read for the sorting, since we're only going to be writing the data out to 
-            */
+                 This case should close the writing from the input parsing, since we only need to read data from stdin. And we should close the read for the sorting, since we're only going to be writing the data out to 
+                */
 
             dup2(process->parse_pipes[cur_pipe][STDIN_FILENO], STDIN_FILENO);
             dup2(process->sort_pipes[cur_pipe][STDOUT_FILENO], STDOUT_FILENO);
@@ -483,8 +461,29 @@ void close_pipes_array(int **pipe_array, int end)
     {
         for (j = 0; j < 2; j++)
         {
-            // Close all the pipes that exist up to i + 1.
+            /* Using close_pipes() here will throw an error because some pipes have already been closed */
             close(pipe_array[i][j]);
         }
+    }
+}
+
+void fork_silencer(Uniq_proc_t* process){
+
+    pid_t spawnpid;
+    spawnpid = fork();
+
+    switch (spawnpid) {
+    case -1:
+        fprintf(stderr, "Fork failed to open in fork_silencer: [Errno = %d, errstr = %s]\n", errno, strerror(errno));
+        exit(EXIT_FAILURE);
+        break;
+    
+    case 0:
+        silencer(process);
+        break;
+
+    default:
+        wait(&spawnpid);
+        break;
     }
 }

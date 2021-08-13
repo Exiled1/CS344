@@ -6,4 +6,5 @@ make a request to the server, vibe, cry, die after done.
 """
 
 class Report:
+    
     pass
