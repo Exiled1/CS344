@@ -24,76 +24,76 @@ Question And Answer:
     a CPU such as dealing with 
 
 2. Which variation runs with higher performance? Did this surprise you?
-    - Technically, for small values of K, everything should remain the same, however with a 
-    larger value of K over a larger amount of data, processes should be *slightly* faster. Since 
-    the time to spawn a thread is much more of an issue with large K values, 
-    - Did it surprise me? Not really, it's a 
+    - Technically, for small values of K, processes should be faster, however with a larger value of K over a larger
+     amount of data, threads should win out in terms of processing speed. Since the time to spawn a thread is 
+     negligable since the sort process should take longer to complete than the thread takes to spawn.
+    - Did it surprise me? Not really, it's a common thing since all of the buffers are awaiting the previous buffer to 
+    return its data before starting its own processing 
 
 Are there benefits to using threads vs processes:
 Yes, there are definitely benefits to using threads over processes, since sharing resources as inner process 
 communication would be needlessly complicated and resource heavy. Threads have the added benefit of sharing
 the same memory space. 
 
-ASCII Data tables with N = 5 tests
+    ASCII Data tables with N = 5 tests
 
-Small File: 12 KiB
+    Small File: 12 KiB
+    +----+-----------------+------------------+
+    | K  | Thread(seconds) | Process(seconds) |
+    +----+-----------------+------------------+
+    |  1 | 0:00.02         | 0:00.02          |
+    |  2 | 0:00.01         | 0:00.02          |
+    |  3 | 0:00.01         | 0:00.02          |
+    |  4 | 0:00.01         | 0:00.01          |
+    |  5 | 0:00.01         | 0:00.01          |
+    |  6 | 0:00.02         | 0:00.02          |
+    |  7 | 0:00.01         | 0:00.02          |
+    |  8 | 0:00.01         | 0:00.02          |
+    |  9 | 0:00.01         | 0:00.01          |
+    | 10 | 0:00.02         | 0:00.01          |
+    | 15 | 0:00.02         | 0:00.02          |
+    | 20 | 0:00.02         | 0:00.02          |
+    | 25 | 0:00.01         | 0:00.01          |
+    | 30 | 0:00.01         | 0:00.02          |
+    +----+-----------------+------------------+
 
-+----+-----------------+------------------+
-| K  | Thread(seconds) | Process(seconds) |
-+----+-----------------+------------------+
-|  1 | 0:00.02         | 0:00.02          |
-|  2 | 0:00.01         | 0:00.02          |
-|  3 | 0:00.01         | 0:00.02          |
-|  4 | 0:00.01         | 0:00.01          |
-|  5 | 0:00.01         | 0:00.01          |
-|  6 | 0:00.02         | 0:00.02          |
-|  7 | 0:00.01         | 0:00.02          |
-|  8 | 0:00.01         | 0:00.02          |
-|  9 | 0:00.01         | 0:00.01          |
-| 10 | 0:00.02         | 0:00.01          |
-| 15 | 0:00.02         | 0:00.02          |
-| 20 | 0:00.02         | 0:00.02          |
-| 25 | 0:00.01         | 0:00.01          |
-| 30 | 0:00.01         | 0:00.02          |
-+----+-----------------+------------------+
+    Medium File: 145 KiB
+    +----+-----------------+------------------+
+    | K  | Thread(seconds) | Process(seconds) |
+    +----+-----------------+------------------+
+    |  1 | 0:00.13         | 0:00.10          |
+    |  2 | 0:00.11         | 0:00.10          |
+    |  3 | 0:00.10         | 0:00.07          |
+    |  4 | 0:00.08         | 0:00.09          |
+    |  5 | 0:00.08         | 0:00.07          |
+    |  6 | 0:00.07         | 0:00.07          |
+    |  7 | 0:00.07         | 0:00.07          |
+    |  8 | 0:00.08         | 0:00.07          |
+    |  9 | 0:00.06         | 0:00.07          |
+    | 10 | 0:00.07         | 0:00.07          |
+    | 15 | 0:00.05         | 0:00.07          |
+    | 20 | 0:00.06         | 0:00.06          |
+    | 25 | 0:00.08         | 0:00.07          |
+    | 30 | 0:00.08         | 0:00.06          |
+    +----+-----------------+------------------+
 
-Medium File: 145 KiB
-+----+-----------------+------------------+
-| K  | Thread(seconds) | Process(seconds) |
-+----+-----------------+------------------+
-|  1 | 0:00.13         | 0:00.10          |
-|  2 | 0:00.11         | 0:00.10          |
-|  3 | 0:00.10         | 0:00.07          |
-|  4 | 0:00.08         | 0:00.09          |
-|  5 | 0:00.08         | 0:00.07          |
-|  6 | 0:00.07         | 0:00.07          |
-|  7 | 0:00.07         | 0:00.07          |
-|  8 | 0:00.08         | 0:00.07          |
-|  9 | 0:00.06         | 0:00.07          |
-| 10 | 0:00.07         | 0:00.07          |
-| 15 | 0:00.05         | 0:00.07          |
-| 20 | 0:00.06         | 0:00.06          |
-| 25 | 0:00.08         | 0:00.07          |
-| 30 | 0:00.08         | 0:00.06          |
-+----+-----------------+------------------+
-
-Big File: 2 MiB
-+----+-----------------+------------------+
-| K  | Thread(seconds) | Process(seconds) |
-+----+-----------------+------------------+
-|  1 | 0:03.52         | 0:02.34          |
-|  2 | 0:02.93         | 0:02.48          |
-|  3 | 0:02.85         | 0:02.41          |
-|  4 | 0:02.24         | 0:01.90          |
-|  5 | 0:01.55         | 0:01.91          |
-|  6 | 0:02.44         | 0:01.96          |
-|  7 | 0:01.53         | 0:02.98          |
-|  8 | 0:01.63         | 0:02.79          |
-|  9 | 0:02.04         | 0:02.67          |
-| 10 | 0:02.07         | 0:02.41          |
-| 15 | 0:02.13         | 0:01.89          |
-| 20 | 0:03.05         | 0:02.14          |
-| 25 | 0:02.30         | 0:02.88          |
-| 30 | 0:01.55         | 0:02.36          |
-+----+-----------------+------------------+
+    Big File: 2 MiB
+    +----+-----------------+------------------+
+    | K  | Thread(seconds) | Process(seconds) |
+    +----+-----------------+------------------+
+    |  1 | 0:03.52         | 0:02.34          |
+    |  2 | 0:02.93         | 0:02.48          |
+    |  3 | 0:02.85         | 0:02.41          |
+    |  4 | 0:02.24         | 0:01.90          |
+    |  5 | 0:01.55         | 0:01.91          |
+    |  6 | 0:02.44         | 0:01.96          |
+    |  7 | 0:01.53         | 0:02.98          |
+    |  8 | 0:01.63         | 0:02.79          |
+    |  9 | 0:02.04         | 0:02.67          |
+    | 10 | 0:02.07         | 0:02.41          |
+    | 15 | 0:02.13         | 0:01.89          |
+    | 20 | 0:03.05         | 0:02.14          |
+    | 25 | 0:02.30         | 0:02.88          |
+    | 30 | 0:01.55         | 0:02.36          |
+    +----+-----------------+------------------+
 
