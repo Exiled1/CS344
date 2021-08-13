@@ -24,9 +24,9 @@ Question And Answer:
     a CPU such as dealing with 
 
 2. Which variation runs with higher performance? Did this surprise you?
-    - Technically, for small values of K, processes should be faster, however with a larger value of K over a larger
-     amount of data, threads should win out in terms of processing speed. Since the time to spawn a thread is 
-     negligable since the sort process should take longer to complete than the thread takes to spawn.
+    - Technically, for small values of K, everything should remain the same, however with a 
+    larger value of K over a larger amount of data, processes should be *slightly* faster. Since 
+    the time to spawn a thread is much more of an issue with large K values, 
     - Did it surprise me? Not really, it's a 
 
 Are there benefits to using threads vs processes:
@@ -37,6 +37,7 @@ the same memory space.
 ASCII Data tables with N = 5 tests
 
 Small File: 12 KiB
+
 +----+-----------------+------------------+
 | K  | Thread(seconds) | Process(seconds) |
 +----+-----------------+------------------+
