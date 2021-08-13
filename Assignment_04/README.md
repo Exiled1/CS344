@@ -27,7 +27,8 @@ Question And Answer:
     - Technically, for small values of K, processes should be faster, however with a larger value of K over a larger
      amount of data, threads should win out in terms of processing speed. Since the time to spawn a thread is 
      negligable since the sort process should take longer to complete than the thread takes to spawn.
-    - Did it surprise me? Not really, it's a 
+    - Did it surprise me? Not really, it's a common thing since all of the buffers are awaiting the previous buffer to 
+    return its data before starting its own processing 
 
 Are there benefits to using threads vs processes:
 Yes, there are definitely benefits to using threads over processes, since sharing resources as inner process 
