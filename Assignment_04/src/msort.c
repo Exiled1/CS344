@@ -420,7 +420,7 @@ void silencer(Uniq_proc_t *process)
         }
     }
     // print final word
-    printf("%*d %s", 7, word_tracker.occurrences, word_tracker.word);
+    printf("%7d %s", word_tracker.occurrences, word_tracker.word);
 
 #ifdef THREAD
     pthread_mutex_unlock(&g_lock);
@@ -461,7 +461,7 @@ void close_pipes_array(int **pipe_array, int end)
     {
         for (j = 0; j < 2; j++)
         {
-            /* Using close_pipes() here will throw an error because some pipes have already been closed */
+            /* I recieved this from office hours and also some stack overflow */
             close(pipe_array[i][j]);
         }
     }

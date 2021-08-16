@@ -16,7 +16,8 @@ REPORT_PACKET_END = "<Report Completed>"
 # ^ Globals for the packet 
 
 def packet_create():
-
+    a = 5
+    print(f"{a =}")
     pass
 
 # Monitor for a signal

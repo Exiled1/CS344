@@ -2,13 +2,13 @@
 
 Compilation for threads:
 Navigate to the makefile, then go to the line that contains FT_MACROS, and replace the THREAD/PROCESS word, with THREAD
-then type make, then run `./uniqify n_processes < input.txt > output.txt`
+then type make, then run `./msort n_processes < input.txt > output.txt`
 
 In between compilation steps, you must `make clean`, otherwise it will not swap the compilation modes.
 
 Compilation for Processes:
 Navigate to the makefile, then go to the line that contains FT_MACROS, and replace the THREAD/PROCESS word, with PROCESS
-then type make, then run `./uniqify n_processes < input.txt > output.txt`
+then type make, then run `./msort n_processes < input.txt > output.txt`
 
 Question And Answer:
 
@@ -20,15 +20,13 @@ Question And Answer:
     however, processes can spawn a bunch of threads. Threading also carries the advantage of being able to easily communicate
     between threads, since all of a process share the same address space. Because of this ability to share a memory space,
     you can have many tasks running in parallel.
-    - Processes are more fit as heavy duty agents to take care of high importance tasks that you want to dedicate to 
-    a CPU such as dealing with 
+    - Processes are more fit as heavy duty agents to take care of high importance tasks that you want to dedicate to a CPU such as dealing with large calculations. 
 
 2. Which variation runs with higher performance? Did this surprise you?
     - Technically, for small values of K, processes should be faster, however with a larger value of K over a larger
      amount of data, threads should win out in terms of processing speed. Since the time to spawn a thread is 
      negligable since the sort process should take longer to complete than the thread takes to spawn.
-    - Did it surprise me? Not really, it's a common thing since all of the buffers are awaiting the previous buffer to 
-    return its data before starting its own processing 
+    - Did it surprise me? Not really, it's a common thing since all of the buffers are awaiting the previous buffer to return its data before starting its own process. 
 
 Are there benefits to using threads vs processes:
 Yes, there are definitely benefits to using threads over processes, since sharing resources as inner process 
